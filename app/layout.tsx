@@ -14,8 +14,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "OmnicodeSMS",
-  description: "OmnicodeSMS — plateforme de numéros virtuels pour la réception de SMS.",
+  title: "OmniCodeSMS",
+  description: "OmniCodeSMS — plateforme de numéros virtuels pour la réception de SMS.",
 };
 
 export default function RootLayout({

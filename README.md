@@ -1,4 +1,4 @@
-# OmnicodeSMS
+# OmniCodeSMS
 
 Plateforme SaaS de numéros virtuels pour la réception de SMS, construite avec [Next.js](https://nextjs.org) (App Router), TypeScript, Tailwind CSS et Prisma.
 
