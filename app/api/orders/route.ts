@@ -122,7 +122,7 @@ export async function POST(request: Request) {
           throw new Error("INSUFFICIENT_BALANCE");
         }
 
-        return tx.order.create({
+        const createdOrder = await tx.order.create({
           data: {
             userId: session.user.id,
             countryId: countryRecord.id,
@@ -134,6 +134,24 @@ export async function POST(request: Request) {
             expiresAt: rental.expiresAt,
           },
         });
+
+        // Signed ledger entry: negative amount for a debit, so a user's
+        // full history (deposits + purchases + refunds) nets out to their
+        // balance without any separate bookkeeping logic.
+        await tx.transaction.create({
+          data: {
+            userId: session.user.id,
+            orderId: createdOrder.id,
+            type: "PURCHASE",
+            status: "SUCCESS",
+            provider: "WALLET",
+            providerRef: rental.providerOrderId,
+            amount: pricing.price.negated(),
+            currency: pricing.currency,
+          },
+        });
+
+        return createdOrder;
       });
 
       return NextResponse.json(order, { status: 201 });
