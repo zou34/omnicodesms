@@ -20,7 +20,7 @@ const FEATURES = [
 
 export function WhyChooseUs() {
   return (
-    <section className="bg-white px-6 pb-40 pt-24 sm:px-10 sm:py-24">
+    <section className="bg-white px-6 py-24 sm:px-10">
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-col items-center text-center">
           <span aria-hidden className="mb-5 h-2.5 w-2.5 rounded-sm bg-blue-500" />

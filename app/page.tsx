@@ -1,7 +1,11 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
+import { FeaturesGrid } from "@/components/landing/features-grid";
+import { Footer } from "@/components/landing/footer";
+import { HowItWorks } from "@/components/landing/how-it-works";
 import { PhoneShowcase } from "@/components/landing/phone-showcase";
+import { ReferralSection } from "@/components/landing/referral-section";
 import { WhyChooseUs } from "@/components/landing/why-choose-us";
 
 export default function Home() {
@@ -66,6 +70,17 @@ export default function Home() {
 
       {/* Why choose us */}
       <WhyChooseUs />
+
+      {/* 6 core features, each with its own CSS-only mockup */}
+      <FeaturesGrid />
+
+      {/* How it works: 3 steps */}
+      <HowItWorks />
+
+      {/* Referral program */}
+      <ReferralSection />
+
+      <Footer />
 
       {/* Mobile-only fixed bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-20 flex gap-3 border-t border-white/10 bg-blue-950/90 p-4 backdrop-blur sm:hidden">
