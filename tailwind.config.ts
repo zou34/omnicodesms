@@ -12,6 +12,17 @@ const config: Config = {
         background: "var(--background)",
         foreground: "var(--foreground)",
       },
+      keyframes: {
+        float: {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-14px)" },
+        },
+      },
+      animation: {
+        float: "float 4.5s ease-in-out infinite",
+        "float-slow": "float 6s ease-in-out infinite",
+        "float-slower": "float 7.5s ease-in-out infinite",
+      },
     },
   },
   plugins: [],

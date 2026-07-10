@@ -1,6 +1,8 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
+import { PhoneShowcase } from "@/components/landing/phone-showcase";
+
 export default function Home() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-blue-900 to-blue-700 text-white">
@@ -13,7 +15,7 @@ export default function Home() {
       <div className="pointer-events-none absolute -top-40 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-blue-400/20 blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 right-0 h-72 w-72 rounded-full bg-blue-300/10 blur-3xl" />
 
-      <div className="relative flex min-h-screen flex-col pb-24 sm:pb-0">
+      <div className="relative flex flex-col pb-24 sm:pb-0">
         {/* Public header */}
         <header className="flex items-center justify-between px-6 py-6 sm:px-10">
           <span className="text-xl font-bold tracking-tight">OmniCodeSMS</span>
@@ -32,7 +34,7 @@ export default function Home() {
         </header>
 
         {/* Hero section */}
-        <main className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center sm:px-10">
+        <main className="flex flex-col items-center px-6 pt-10 pb-4 text-center sm:px-10 sm:pt-16">
           <p className="text-lg font-bold text-blue-200 sm:text-2xl">OmniCodeSMS</p>
 
           <h1 className="mt-4 max-w-4xl text-4xl font-extrabold leading-tight sm:text-6xl">
@@ -54,6 +56,9 @@ export default function Home() {
             <ArrowRight className="h-5 w-5" />
           </Link>
         </main>
+
+        {/* Showcase: phone mockup + floating service bubbles */}
+        <PhoneShowcase />
       </div>
 
       {/* Mobile-only fixed bottom nav */}
