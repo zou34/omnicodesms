@@ -2,9 +2,12 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 import { FeaturesGrid } from "@/components/landing/features-grid";
+import { FinalCta } from "@/components/landing/final-cta";
 import { Footer } from "@/components/landing/footer";
 import { HowItWorks } from "@/components/landing/how-it-works";
+import { PaymentMethods } from "@/components/landing/payment-methods";
 import { PhoneShowcase } from "@/components/landing/phone-showcase";
+import { Pricing } from "@/components/landing/pricing";
 import { ReferralSection } from "@/components/landing/referral-section";
 import { WhyChooseUs } from "@/components/landing/why-choose-us";
 
@@ -77,8 +80,17 @@ export default function Home() {
       {/* How it works: 3 steps */}
       <HowItWorks />
 
+      {/* Local payment methods (Africa market) */}
+      <PaymentMethods />
+
+      {/* FCFA pricing packs */}
+      <Pricing />
+
       {/* Referral program */}
       <ReferralSection />
+
+      {/* Final CTA */}
+      <FinalCta />
 
       <Footer />
 
