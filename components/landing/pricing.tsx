@@ -44,7 +44,7 @@ export function Pricing() {
           {PLANS.map((plan) => (
             <div
               key={plan.activations}
-              className={`relative overflow-hidden rounded-2xl bg-white ${
+              className={`relative rounded-2xl bg-white ${
                 plan.featured
                   ? "ring-2 ring-blue-600 shadow-xl lg:-translate-y-3"
                   : "shadow-sm ring-1 ring-slate-100"
@@ -57,7 +57,7 @@ export function Pricing() {
               )}
 
               <div
-                className={`px-6 pb-8 pt-8 text-white ${
+                className={`rounded-t-2xl px-6 pb-8 pt-8 text-white ${
                   plan.featured
                     ? "bg-gradient-to-br from-blue-700 to-blue-900"
                     : "bg-blue-600"
@@ -72,7 +72,7 @@ export function Pricing() {
                 <p className="text-sm text-blue-100">activations</p>
               </div>
 
-              <div className="flex flex-col gap-4 px-6 pb-8 pt-6">
+              <div className="flex flex-col gap-4 rounded-b-2xl px-6 pb-8 pt-6">
                 <div>
                   <p className="text-2xl font-extrabold text-slate-900">{formatFcfa(plan.price)}</p>
                   <p className="mt-1 text-xs text-slate-500">{plan.perActivation}</p>
@@ -91,6 +91,7 @@ export function Pricing() {
 
                 <GlowingButton
                   type="button"
+                  fullWidth
                   className="mt-2 w-full py-3 text-sm font-bold text-white"
                   maskClassName={
                     plan.featured
