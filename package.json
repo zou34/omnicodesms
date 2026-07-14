@@ -10,7 +10,8 @@
     "lint": "next lint",
     "prisma:seed": "tsx prisma/seed.ts",
     "provider:test": "tsx scripts/test-mock-provider.ts",
-    "credit-balance": "tsx scripts/credit-balance.ts"
+    "credit-balance": "tsx scripts/credit-balance.ts",
+    "make-admin": "tsx scripts/make-admin.ts"
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",
