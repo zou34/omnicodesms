@@ -1,5 +1,6 @@
 import { ArrowRight } from "lucide-react";
-import Link from "next/link";
+
+import { GlowingButton } from "@/components/ui/glowing-button";
 
 export function FinalCta() {
   return (
@@ -11,13 +12,14 @@ export function FinalCta() {
           La solution de vérification SMS la plus rapide d&apos;Afrique
         </p>
 
-        <Link
+        <GlowingButton
           href="/register"
-          className="mt-10 inline-flex items-center gap-2 rounded-full bg-white px-8 py-4 text-base font-bold text-blue-900 shadow-xl shadow-blue-950/30 transition hover:bg-blue-50"
+          className="mt-10 px-8 py-4 text-base font-bold text-blue-900 shadow-xl shadow-blue-950/30"
+          maskClassName="bg-white group-hover:bg-blue-50"
         >
           Créer un Compte Gratuit
           <ArrowRight className="h-5 w-5" />
-        </Link>
+        </GlowingButton>
       </div>
     </section>
   );

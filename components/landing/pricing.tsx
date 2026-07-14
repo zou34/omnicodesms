@@ -1,5 +1,7 @@
 import { Check } from "lucide-react";
 
+import { GlowingButton } from "@/components/ui/glowing-button";
+
 interface PricingPlan {
   activations: number;
   price: number;
@@ -87,16 +89,17 @@ export function Pricing() {
                   </ul>
                 )}
 
-                <button
+                <GlowingButton
                   type="button"
-                  className={`mt-2 w-full rounded-full py-3 text-sm font-bold transition ${
+                  className="mt-2 w-full py-3 text-sm font-bold text-white"
+                  maskClassName={
                     plan.featured
-                      ? "bg-blue-900 text-white hover:bg-blue-800"
-                      : "bg-slate-900 text-white hover:bg-slate-800"
-                  }`}
+                      ? "bg-blue-900 group-hover:bg-blue-800"
+                      : "bg-slate-900 group-hover:bg-slate-800"
+                  }
                 >
                   Acheter
-                </button>
+                </GlowingButton>
               </div>
             </div>
           ))}

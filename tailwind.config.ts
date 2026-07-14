@@ -22,6 +22,7 @@ const config: Config = {
         float: "float 4.5s ease-in-out infinite",
         "float-slow": "float 6s ease-in-out infinite",
         "float-slower": "float 7.5s ease-in-out infinite",
+        "spin-glow": "spin 3.5s linear infinite",
       },
     },
   },

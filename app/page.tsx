@@ -10,6 +10,7 @@ import { PhoneShowcase } from "@/components/landing/phone-showcase";
 import { Pricing } from "@/components/landing/pricing";
 import { ReferralSection } from "@/components/landing/referral-section";
 import { WhyChooseUs } from "@/components/landing/why-choose-us";
+import { GlowingButton } from "@/components/ui/glowing-button";
 
 export default function Home() {
   return (
@@ -57,13 +58,14 @@ export default function Home() {
               d&apos;autres.
             </p>
 
-            <Link
+            <GlowingButton
               href="/register"
-              className="mt-10 inline-flex items-center gap-2 rounded-full bg-white px-8 py-4 text-base font-bold text-blue-900 shadow-xl shadow-blue-950/30 transition hover:bg-blue-50"
+              className="mt-10 px-8 py-4 text-base font-bold text-blue-900 shadow-xl shadow-blue-950/30"
+              maskClassName="bg-white group-hover:bg-blue-50"
             >
               Commencer Maintenant
               <ArrowRight className="h-5 w-5" />
-            </Link>
+            </GlowingButton>
           </main>
 
           {/* Showcase: phone mockup + floating service bubbles */}
