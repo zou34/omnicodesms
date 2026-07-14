@@ -38,9 +38,18 @@ export function DashboardShell({
     setOrders((prev) => prev.map((order) => (order.id === update.id ? { ...order, ...update } : order)));
   }, []);
 
+  const handleBalanceUpdated = useCallback((newBalance: number) => {
+    setBalance(newBalance);
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      <DashboardHeader userName={userName} userEmail={userEmail} balance={balance} />
+      <DashboardHeader
+        userName={userName}
+        userEmail={userEmail}
+        balance={balance}
+        onBalanceUpdated={handleBalanceUpdated}
+      />
 
       <main className="mx-auto max-w-4xl space-y-8 px-6 py-10">
         <PurchasePanel
