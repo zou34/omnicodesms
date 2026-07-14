@@ -33,14 +33,14 @@ const DIAL_CODES: Record<string, string> = {
 };
 
 const BASE_PRICE_BY_SERVICE: Record<string, number> = {
-  whatsapp: 0.45,
-  telegram: 0.25,
-  google: 0.35,
-  facebook: 0.3,
-  instagram: 0.3,
-  twitter: 0.28,
-  discord: 0.22,
-  tiktok: 0.32,
+  whatsapp: 100,
+  telegram: 60,
+  google: 90,
+  facebook: 85,
+  instagram: 85,
+  twitter: 75,
+  discord: 55,
+  tiktok: 85,
 };
 
 const ORDER_TTL_MS = 10 * 60 * 1000; // 10 minutes, mirrors a typical real-world rental window
@@ -73,7 +73,7 @@ export class MockProvider extends SmsProvider {
 
   async getBalance(): Promise<ProviderBalance> {
     await randomDelay(100, 300);
-    return { amount: 1000, currency: "USD" };
+    return { amount: 500_000, currency: "FCFA" };
   }
 
   async getPrices(country: string, service: string): Promise<ProviderPrice> {
@@ -91,13 +91,13 @@ export class MockProvider extends SmsProvider {
 
     // +/-10% jitter so repeated calls don't look perfectly static.
     const jitter = 0.9 + Math.random() * 0.2;
-    const price = Math.round(basePrice * jitter * 100) / 100;
+    const price = Math.round(basePrice * jitter);
 
     return {
       country,
       service,
       price,
-      currency: "USD",
+      currency: "FCFA",
       available: Math.floor(Math.random() * 50) + 1,
     };
   }
@@ -154,7 +154,7 @@ export class MockProvider extends SmsProvider {
       country,
       service,
       price: basePrice,
-      currency: "USD",
+      currency: "FCFA",
       expiresAt,
     };
   }

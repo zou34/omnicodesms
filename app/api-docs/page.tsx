@@ -63,8 +63,8 @@ export default function ApiDocsPage() {
   "country": "US",
   "service": "whatsapp",
   "status": "PENDING",
-  "price": 0.45,
-  "currency": "USD"
+  "price": 100,
+  "currency": "FCFA"
 }`}
             </code>
           </pre>

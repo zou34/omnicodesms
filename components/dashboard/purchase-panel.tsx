@@ -82,7 +82,7 @@ export function PurchasePanel({ countries, services, pricing, onOrderCreated }: 
             id="country"
             value={countryId}
             onChange={(e) => setCountryId(e.target.value)}
-            className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2.5 text-sm text-white outline-none focus:border-indigo-500"
+            className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-500"
           >
             {countries.map((country) => (
               <option key={country.id} value={country.id}>
@@ -100,7 +100,7 @@ export function PurchasePanel({ countries, services, pricing, onOrderCreated }: 
             id="service"
             value={serviceId}
             onChange={(e) => setServiceId(e.target.value)}
-            className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2.5 text-sm text-white outline-none focus:border-indigo-500"
+            className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-500"
           >
             {services.map((service) => (
               <option key={service.id} value={service.id}>
@@ -114,7 +114,9 @@ export function PurchasePanel({ countries, services, pricing, onOrderCreated }: 
       <div className="mt-6 flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
         <span className="text-sm text-slate-400">Prix</span>
         <span className="text-lg font-semibold text-white">
-          {selectedPricing ? `${selectedPricing.price} ${selectedPricing.currency}` : "Indisponible"}
+          {selectedPricing
+            ? `${Number(selectedPricing.price).toLocaleString("fr-FR")} ${selectedPricing.currency}`
+            : "Indisponible"}
         </span>
       </div>
 
@@ -128,7 +130,7 @@ export function PurchasePanel({ countries, services, pricing, onOrderCreated }: 
         type="button"
         onClick={handleBuy}
         disabled={isBuying || !selectedPricing}
-        className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isBuying ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShoppingCart className="h-5 w-5" />}
         Acheter ce numéro

@@ -1,5 +1,5 @@
 // Manually credits a user's wallet balance for local testing, e.g.:
-//   npm run credit-balance -- you@example.com 50
+//   npm run credit-balance -- you@example.com 15000
 import { prisma } from "@/lib/prisma";
 
 const [, , email, amountArg] = process.argv;
@@ -12,7 +12,7 @@ if (!email || !amountArg) {
 const amount = Number(amountArg);
 
 if (!Number.isFinite(amount) || amount <= 0) {
-  console.error("Le montant doit être un nombre positif (ex: 50).");
+  console.error("Le montant doit être un nombre positif (ex: 15000).");
   process.exit(1);
 }
 
@@ -41,14 +41,14 @@ async function main() {
         provider: "WALLET",
         providerRef: "manual-credit-script",
         amount,
-        currency: "USD",
+        currency: "FCFA",
       },
     });
 
     return updatedUser;
   });
 
-  console.log(`Nouveau solde de ${updated.email}: ${updated.balance.toString()} USD`);
+  console.log(`Nouveau solde de ${updated.email}: ${updated.balance.toString()} FCFA`);
 }
 
 main()

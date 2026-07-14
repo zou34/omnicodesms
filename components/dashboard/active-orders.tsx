@@ -90,11 +90,11 @@ function OrderCard({ order }: { order: OrderVM }) {
             <button
               type="button"
               onClick={() => copyToClipboard(order.phoneNumber!, "phone")}
-              className="mt-1 flex items-center gap-2 font-mono text-base text-white hover:text-indigo-400"
+              className="mt-1 flex items-center gap-2 font-mono text-base text-white hover:text-blue-400"
             >
               {order.phoneNumber}
               <Copy className="h-3.5 w-3.5" />
-              {copied === "phone" && <span className="text-xs text-indigo-400">Copié !</span>}
+              {copied === "phone" && <span className="text-xs text-blue-400">Copié !</span>}
             </button>
           )}
         </div>
@@ -145,7 +145,7 @@ function StatusBadge({ status }: { status: OrderStatus }) {
     },
     ACTIVE: {
       label: "Active",
-      className: "border-indigo-500/30 bg-indigo-500/10 text-indigo-400",
+      className: "border-blue-500/30 bg-blue-500/10 text-blue-400",
       icon: Clock,
     },
     COMPLETED: {

@@ -19,7 +19,7 @@ export function DashboardHeader({ userName, userEmail, balance }: DashboardHeade
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 text-sm font-medium text-emerald-400">
             <Wallet className="h-4 w-4" />
-            {balance.toFixed(2)} USD
+            {balance.toLocaleString("fr-FR")} FCFA
           </div>
 
           <div className="hidden text-right sm:block">

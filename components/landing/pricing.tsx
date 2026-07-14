@@ -90,7 +90,7 @@ export function Pricing() {
                 )}
 
                 <GlowingButton
-                  type="button"
+                  href="/register"
                   fullWidth
                   className="mt-2 w-full py-3 text-sm font-bold text-white"
                   maskClassName={

@@ -24,17 +24,19 @@ const services = [
   { name: "TikTok", slug: "tiktok" },
 ];
 
-// Base price (USD) per service; countries apply a small multiplier so
-// pricing looks realistic across the grid without being random.
+// Base price (FCFA) per service; countries apply a small multiplier so
+// pricing looks realistic across the grid without being random. Roughly
+// matches the per-activation range shown on the public pricing page
+// (~86-100 FCFA).
 const basePriceByService: Record<string, number> = {
-  whatsapp: 0.45,
-  telegram: 0.25,
-  google: 0.35,
-  facebook: 0.3,
-  instagram: 0.3,
-  twitter: 0.28,
-  discord: 0.22,
-  tiktok: 0.32,
+  whatsapp: 100,
+  telegram: 60,
+  google: 90,
+  facebook: 85,
+  instagram: 85,
+  twitter: 75,
+  discord: 55,
+  tiktok: 85,
 };
 
 const priceMultiplierByCountry: Record<string, number> = {
@@ -74,9 +76,9 @@ async function main() {
   console.log("Seeding country/service pricing...");
   for (const country of createdCountries) {
     for (const service of createdServices) {
-      const basePrice = basePriceByService[service.slug] ?? 0.3;
+      const basePrice = basePriceByService[service.slug] ?? 75;
       const multiplier = priceMultiplierByCountry[country.code] ?? 1;
-      const price = Math.round(basePrice * multiplier * 100) / 100;
+      const price = Math.round(basePrice * multiplier);
 
       await prisma.countryService.upsert({
         where: {
@@ -85,11 +87,12 @@ async function main() {
             serviceId: service.id,
           },
         },
-        update: { price },
+        update: { price, currency: "FCFA" },
         create: {
           countryId: country.id,
           serviceId: service.id,
           price,
+          currency: "FCFA",
         },
       });
     }

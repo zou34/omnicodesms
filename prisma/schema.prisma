@@ -111,7 +111,7 @@ model CountryService {
   countryId String
   serviceId String
   price     Decimal @db.Decimal(10, 2)
-  currency  String  @default("USD")
+  currency  String  @default("FCFA")
   isActive  Boolean @default(true)
 
   country Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
@@ -185,7 +185,7 @@ model Transaction {
   provider    PaymentProvider
   providerRef String?
   amount      Decimal            @db.Decimal(10, 2) // signed: positive = credit (deposit/refund), negative = debit (purchase)
-  currency    String             @default("USD")
+  currency    String             @default("FCFA")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
