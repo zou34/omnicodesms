@@ -10,10 +10,9 @@ interface DashboardHeaderProps {
   userName: string | null;
   userEmail: string | null;
   balance: number;
-  onBalanceUpdated: (newBalance: number) => void;
 }
 
-export function DashboardHeader({ userName, userEmail, balance, onBalanceUpdated }: DashboardHeaderProps) {
+export function DashboardHeader({ userName, userEmail, balance }: DashboardHeaderProps) {
   const [isRechargeOpen, setIsRechargeOpen] = useState(false);
 
   return (
@@ -53,13 +52,7 @@ export function DashboardHeader({ userName, userEmail, balance, onBalanceUpdated
           containing block for `position: fixed` descendants — nesting the
           modal inside it would confine `inset-0` to the header's own
           (short) box instead of the full viewport. */}
-      <RechargeModal
-        open={isRechargeOpen}
-        onClose={() => setIsRechargeOpen(false)}
-        onSuccess={(newBalance) => {
-          onBalanceUpdated(newBalance);
-        }}
-      />
+      <RechargeModal open={isRechargeOpen} onClose={() => setIsRechargeOpen(false)} />
     </>
   );
 }

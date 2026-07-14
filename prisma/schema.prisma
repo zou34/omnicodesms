@@ -175,6 +175,7 @@ enum PaymentProvider {
   FLUTTERWAVE
   WALLET
   MOCK // simulated payment confirmation, pending real Stripe/Flutterwave wiring
+  GATEWAY // real payment gateway confirmation (Moneroo/PayTech), via /api/webhooks/payment
 }
 
 model Transaction {
