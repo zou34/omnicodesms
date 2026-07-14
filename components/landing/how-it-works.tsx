@@ -23,7 +23,7 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <section className="bg-slate-50 px-6 py-24 sm:px-10">
+    <section id="how-it-works" className="scroll-mt-6 bg-slate-50 px-6 py-24 sm:px-10">
       <div className="mx-auto max-w-6xl">
         <h2 className="text-center text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
           3 étapes simples pour recevoir votre SMS
