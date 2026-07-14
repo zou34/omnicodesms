@@ -54,8 +54,8 @@ export default function Home() {
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-blue-100 sm:text-lg">
               OmniCodeSMS est la plateforme professionnelle de référence pour recevoir des SMS en
               ligne et valider vos comptes sans carte SIM. Obtenez instantanément des numéros
-              virtuels dans plus de 170 pays pour débloquer WhatsApp, Telegram, Google et bien
-              d&apos;autres.
+              virtuels dans plus de 170 pays pour débloquer WhatsApp, Telegram, Facebook,
+              Instagram, TikTok, Google, YouTube et bien d&apos;autres.
             </p>
 
             <GlowingButton
