@@ -79,9 +79,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
-    // Idempotency: gateways may (and do) deliver the same event more than
-    // once. Only a PENDING transaction can still be confirmed — anything
-    // else means this reference was already settled.
+    // Fast-path skip (avoids the DB round-trip below for the common case
+    // of a plain retried delivery) — the real, race-safe guard is the
+    // `updateMany` below, not this check.
     if (transaction.status !== "PENDING") {
       return NextResponse.json({ received: true }, { status: 200 });
     }
@@ -96,23 +96,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
-    if (status === "SUCCESS") {
-      await prisma.$transaction(async (tx) => {
-        await tx.transaction.update({
-          where: { id: transaction.id },
-          data: { status: "SUCCESS" },
-        });
+    // Idempotency, done properly: gateways may (and do) deliver the same
+    // event more than once, including concurrently. `updateMany` with a
+    // `status: "PENDING"` guard makes the PENDING -> SUCCESS/FAILED
+    // transition atomic at the database level — only the request that
+    // actually flips the row gets `count === 1` and is allowed to touch
+    // the balance. Without this guard, two concurrent deliveries could
+    // both read "still PENDING" and both credit the balance (double
+    // credit) — the exact race the balance-debit path already avoids via
+    // the equivalent `updateMany`/`gte` pattern in app/api/orders/route.ts.
+    const settled = await prisma.$transaction(async (tx) => {
+      const result = await tx.transaction.updateMany({
+        where: { id: transaction.id, status: "PENDING" },
+        data: { status: status === "SUCCESS" ? "SUCCESS" : "FAILED" },
+      });
 
+      if (result.count === 0) {
+        // Lost the race to another delivery of the same event — nothing
+        // left to do.
+        return false;
+      }
+
+      if (status === "SUCCESS") {
         await tx.user.update({
           where: { id: transaction.userId },
           data: { balance: { increment: transaction.amount } },
         });
-      });
-    } else {
-      await prisma.transaction.update({
-        where: { id: transaction.id },
-        data: { status: "FAILED" },
-      });
+      }
+
+      return true;
+    });
+
+    if (!settled) {
+      console.warn(`[POST /api/webhooks/payment] duplicate delivery ignored for ${reference}`);
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
