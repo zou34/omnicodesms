@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 
 interface MetricCardProps {
   label: string;
@@ -21,9 +21,18 @@ export function MetricCard({ label, value, growthPercent, icon: Icon }: MetricCa
       <p className="mt-4 text-3xl font-extrabold text-slate-900">{value}</p>
 
       {growthPercent !== undefined && (
-        <p className="mt-2 flex items-center gap-1 text-sm font-medium text-emerald-600">
-          <ArrowUpRight className="h-4 w-4" />
-          +{growthPercent}%{" "}
+        <p
+          className={`mt-2 flex items-center gap-1 text-sm font-medium ${
+            growthPercent >= 0 ? "text-emerald-600" : "text-red-600"
+          }`}
+        >
+          {growthPercent >= 0 ? (
+            <ArrowUpRight className="h-4 w-4" />
+          ) : (
+            <ArrowDownRight className="h-4 w-4" />
+          )}
+          {growthPercent >= 0 ? "+" : ""}
+          {growthPercent}%{" "}
           <span className="font-normal text-slate-400">vs mois dernier</span>
         </p>
       )}

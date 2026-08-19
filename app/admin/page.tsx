@@ -3,7 +3,7 @@ import { Phone, TrendingUp, Users } from "lucide-react";
 import { MetricCard } from "@/components/admin/metric-card";
 import { RecentTransactionsTable } from "@/components/admin/recent-transactions-table";
 import { RecentUsersTable } from "@/components/admin/recent-users-table";
-import { getRecentTransactions, getRecentUsers, getStats } from "@/lib/admin/mock-data";
+import { getRecentTransactions, getRecentUsers, getStats } from "@/lib/admin/queries";
 
 export default async function AdminOverviewPage() {
   const [stats, recentUsers, recentTransactions] = await Promise.all([

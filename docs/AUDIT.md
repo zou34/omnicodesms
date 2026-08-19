@@ -14,13 +14,15 @@ Le site est fonctionnellement riche et cohérent — authentification, achat de 
 
 **Mise à jour — Chantier 18** : les 3 constats "Élevé" les plus urgents pour un lancement public ont été corrigés — pages de résilience App Router (`error.tsx`/`not-found.tsx`/`loading.tsx`), SEO de base (`robots.ts`/`sitemap.ts`/Open Graph), et `metadata` par page sur `/login` et `/register` (voir §4, constats #1-3, et §6). Portée volontairement limitée : la suite de tests automatisés (constat élevé restant, §5) est repoussée à un chantier dédié à la demande explicite du produit.
 
-**Mise à jour — Chantier 19** : dernier constat "Élevé" côté front-end corrigé — la sidebar admin est désormais un drawer responsive (menu hamburger + backdrop sous `lg`), sans régression sur le rendu desktop (voir §4, constat #4, et §6). Il ne reste plus, au niveau "Élevé", que trois constats non-frontend (rate limiting, données mockées du panneau admin, absence de tests — ce dernier explicitement repoussé à un chantier séparé).
+**Mise à jour — Chantier 19** : dernier constat "Élevé" côté front-end corrigé — la sidebar admin est désormais un drawer responsive (menu hamburger + backdrop sous `lg`), sans régression sur le rendu desktop (voir §4, constat #4, et §6).
+
+**Mise à jour — Chantier 19 (suite)** : le panneau admin est désormais branché sur les vraies données Supabase — vue d'ensemble, utilisateurs, transactions et numéros lisent tous `lib/admin/queries.ts` (Prisma) au lieu de `lib/admin/mock-data.ts`, supprimé (voir §3.2, constat #3, et §6). Pagination réelle (20 lignes/page) sur les trois listes complètes. Un bug d'affichage a été découvert et corrigé au passage : une croissance négative s'affichait `+-100%` dans `MetricCard` (jamais exposé avec les données mockées, toujours positives) — corrigé pour afficher un signe et une couleur cohérents. Il ne reste plus, au niveau "Élevé", que deux constats : l'absence de rate limiting et l'absence de tests (ce dernier explicitement repoussé à un chantier séparé).
 
 **Top des points restants à traiter en priorité** (mis à jour) :
 1. Absence totale de rate limiting / anti-bruteforce (inscription, connexion, checkout).
 2. Aucun test automatisé (unitaire, intégration, e2e) — **chantier séparé prévu**.
-3. Panneau admin entièrement sur données mockées — aucun accès réel aux utilisateurs/transactions/commandes.
-4. Incohérence de devise (`$` dans la carte de parrainage vs FCFA partout ailleurs) et modale de recharge sans sémantique de dialogue accessible.
+3. Incohérence de devise (`$` dans la carte de parrainage vs FCFA partout ailleurs) et modale de recharge sans sémantique de dialogue accessible.
+4. `Transaction.providerRef` sans contrainte d'unicité au niveau base (renforcerait le correctif applicatif du §3.1).
 
 **Ce qui est déjà bien fait** (à ne pas casser en corrigeant le reste) : débit de solde atomique et race-safe sur l'achat de numéro, vérification HMAC solide avec comparaison en temps constant sur le webhook, résolution des prix toujours côté serveur (jamais confiance au client), protection IDOR sur `GET /api/orders/[id]`, `.env` correctement ignoré par Git, promotion admin confinée à un script CLI hors-web, nettoyage de cohérence visuelle (indigo→bleu) complet, cohérence linguistique française, animations 100 % CSS respectant `prefers-reduced-motion`.
 
@@ -124,7 +126,7 @@ Solde final du compte de test : **6000 FCFA**, exactement la somme des deux tran
 |---|---|---|---|
 | 1 | Aucun rate limiting / CAPTCHA nulle part (inscription, connexion, checkout) — endpoint d'inscription et provider Credentials sans throttling, exploitable pour du bourrage de comptes ou du bruteforce | `app/api/register/route.ts`, `lib/auth.ts` | **Notable** |
 | 2 | `Transaction.providerRef` n'a pas de contrainte d'unicité en base (simple colonne indexée par `userId`/`orderId` seulement) — rien n'empêche au niveau DB deux lignes avec la même référence | `prisma/schema.prisma` | Mineur (contribue au risque déjà corrigé en 3.1) |
-| 3 | Panneau admin à 100 % sur données mockées — `/admin` et les 4 sous-pages ne font aucun appel Prisma ; un admin ne peut ni voir ni agir sur de vraies données aujourd'hui | `app/admin/**`, `lib/admin/mock-data.ts` | **Notable** (fonctionnel, pas sécurité) |
+| 3 | ✅ *Corrigé au Chantier 19* — ~~Panneau admin à 100 % sur données mockées~~ ; `/admin` (vue d'ensemble), `/admin/users`, `/admin/transactions` et `/admin/numbers` lisent désormais Prisma en direct (`lib/admin/queries.ts`), avec pagination réelle sur les 3 listes complètes ; `lib/admin/mock-data.ts` supprimé. Vérifié en conditions réelles (25 utilisateurs/commandes/transactions de test injectés puis nettoyés, pagination page 1↔2 confirmée, zéro erreur console) | `lib/admin/queries.ts`, `app/admin/**`, `components/admin/*-table.tsx` | ~~**Notable**~~ |
 | 4 | `request.json()` non protégé par try/catch dans la route d'inscription — un corps JSON malformé plante en 500 au lieu d'un 400 propre (incohérent avec les deux autres routes POST qui gardent cet appel) | `app/api/register/route.ts:14` | Mineur |
 | 5 | Le rollback d'annulation côté fournisseur (`provider.cancelOrder(...).catch(() => {})`) avale silencieusement les échecs — pas de retry ni de file de dead-letter si l'annulation échoue elle-même | `app/api/orders/route.ts:162` | Mineur |
 | 6 | Une transaction webhook avec montant incohérent reste bloquée `PENDING` indéfiniment, sans job de réconciliation | `app/api/webhooks/payment/route.ts` | Mineur |
@@ -175,7 +177,7 @@ Aucun fichier de test (`*.test.ts(x)`, `*.spec.ts(x)`, dossier `__tests__`) ni c
 
 **Chantiers dédiés à planifier** :
 1. **Rate limiting** sur `/api/register`, `/api/auth/*` (Credentials), `/api/payments/checkout` — probablement via un middleware Edge (Upstash Ratelimit ou équivalent).
-2. **Brancher le panneau admin sur les vraies données** (remplacer `lib/admin/mock-data.ts` par de vraies requêtes Prisma — les 3 TODO du fichier documentent déjà précisément quoi faire).
+2. ~~Brancher le panneau admin sur les vraies données (remplacer `lib/admin/mock-data.ts` par de vraies requêtes Prisma).~~ ✅ Fait au Chantier 19.
 3. ~~Rendre la sidebar admin responsive (drawer/hamburger sous `md`).~~ ✅ Fait au Chantier 19.
 4. ~~Mettre en place `loading.tsx`/`error.tsx`/`not-found.tsx` sur les segments clés.~~ ✅ Fait au Chantier 18 (`app/error.tsx`, `app/not-found.tsx`, `app/loading.tsx`, `app/admin/loading.tsx`).
 5. **Démarrer une suite de tests minimale** (Vitest sur `lib/`, Playwright sur les parcours critiques) — **chantier séparé prévu, portée volontairement exclue du Chantier 18**.
