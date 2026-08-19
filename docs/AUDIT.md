@@ -16,13 +16,15 @@ Le site est fonctionnellement riche et cohérent — authentification, achat de 
 
 **Mise à jour — Chantier 19** : dernier constat "Élevé" côté front-end corrigé — la sidebar admin est désormais un drawer responsive (menu hamburger + backdrop sous `lg`), sans régression sur le rendu desktop (voir §4, constat #4, et §6).
 
-**Mise à jour — Chantier 19 (suite)** : le panneau admin est désormais branché sur les vraies données Supabase — vue d'ensemble, utilisateurs, transactions et numéros lisent tous `lib/admin/queries.ts` (Prisma) au lieu de `lib/admin/mock-data.ts`, supprimé (voir §3.2, constat #3, et §6). Pagination réelle (20 lignes/page) sur les trois listes complètes. Un bug d'affichage a été découvert et corrigé au passage : une croissance négative s'affichait `+-100%` dans `MetricCard` (jamais exposé avec les données mockées, toujours positives) — corrigé pour afficher un signe et une couleur cohérents. Il ne reste plus, au niveau "Élevé", que deux constats : l'absence de rate limiting et l'absence de tests (ce dernier explicitement repoussé à un chantier séparé).
+**Mise à jour — Chantier 19 (suite)** : le panneau admin est désormais branché sur les vraies données Supabase — vue d'ensemble, utilisateurs, transactions et numéros lisent tous `lib/admin/queries.ts` (Prisma) au lieu de `lib/admin/mock-data.ts`, supprimé (voir §3.2, constat #3, et §6). Pagination réelle (20 lignes/page) sur les trois listes complètes. Un bug d'affichage a été découvert et corrigé au passage : une croissance négative s'affichait `+-100%` dans `MetricCard` (jamais exposé avec les données mockées, toujours positives) — corrigé pour afficher un signe et une couleur cohérents.
+
+**Mise à jour — Chantier 20** : dernier constat "Élevé" du rapport corrigé — rate limiting en place sur les 5 routes sensibles (`register`, `login` credentials, `orders`, `payments/checkout`, `webhooks/payment`) via un limiteur en mémoire (voir §3.2, constat #1, et §6). **Il ne reste plus aucun constat "Élevé" ouvert** — seule l'absence de tests automatisés demeure, explicitement repoussée à un chantier séparé depuis le Chantier 18.
 
 **Top des points restants à traiter en priorité** (mis à jour) :
-1. Absence totale de rate limiting / anti-bruteforce (inscription, connexion, checkout).
-2. Aucun test automatisé (unitaire, intégration, e2e) — **chantier séparé prévu**.
-3. Incohérence de devise (`$` dans la carte de parrainage vs FCFA partout ailleurs) et modale de recharge sans sémantique de dialogue accessible.
-4. `Transaction.providerRef` sans contrainte d'unicité au niveau base (renforcerait le correctif applicatif du §3.1).
+1. Aucun test automatisé (unitaire, intégration, e2e) — **chantier séparé prévu**.
+2. Incohérence de devise (`$` dans la carte de parrainage vs FCFA partout ailleurs) et modale de recharge sans sémantique de dialogue accessible.
+3. `Transaction.providerRef` sans contrainte d'unicité au niveau base (renforcerait le correctif applicatif du §3.1).
+4. Le rate limiting du Chantier 20 est en mémoire (mono-instance) — à migrer vers un store partagé (Upstash Redis ou équivalent) avant tout déploiement multi-instance/serverless.
 
 **Ce qui est déjà bien fait** (à ne pas casser en corrigeant le reste) : débit de solde atomique et race-safe sur l'achat de numéro, vérification HMAC solide avec comparaison en temps constant sur le webhook, résolution des prix toujours côté serveur (jamais confiance au client), protection IDOR sur `GET /api/orders/[id]`, `.env` correctement ignoré par Git, promotion admin confinée à un script CLI hors-web, nettoyage de cohérence visuelle (indigo→bleu) complet, cohérence linguistique française, animations 100 % CSS respectant `prefers-reduced-motion`.
 
@@ -124,7 +126,7 @@ Solde final du compte de test : **6000 FCFA**, exactement la somme des deux tran
 
 | # | Constat | Fichier | Sévérité |
 |---|---|---|---|
-| 1 | Aucun rate limiting / CAPTCHA nulle part (inscription, connexion, checkout) — endpoint d'inscription et provider Credentials sans throttling, exploitable pour du bourrage de comptes ou du bruteforce | `app/api/register/route.ts`, `lib/auth.ts` | **Notable** |
+| 1 | ✅ *Corrigé au Chantier 20* — ~~Aucun rate limiting / CAPTCHA nulle part~~ ; limiteur en mémoire (`lib/rate-limit.ts`, fenêtre fixe par clé) appliqué sur `register` (5/15min par IP), `login` credentials (5/10min par email + 20/10min par IP, défense en profondeur contre le credential stuffing), `orders` et `payments/checkout` (10/min par utilisateur, protège le solde et l'appel fournisseur), `webhooks/payment` (100/min par IP, vérifié avant tout calcul HMAC). Vérifié en conditions réelles : chaque route testée jusqu'au déclenchement du `429`, avec confirmation que les flux légitimes (inscription, connexion, checkout, webhook signé) continuent de fonctionner normalement sous le seuil. **Limite connue** : mémoire du process, donc mono-instance — à migrer vers Upstash Redis avant un déploiement multi-instance/serverless (voir §6) | `lib/rate-limit.ts`, `app/api/register/route.ts`, `lib/auth.ts`, `app/api/orders/route.ts`, `app/api/payments/checkout/route.ts`, `app/api/webhooks/payment/route.ts` | ~~**Notable**~~ |
 | 2 | `Transaction.providerRef` n'a pas de contrainte d'unicité en base (simple colonne indexée par `userId`/`orderId` seulement) — rien n'empêche au niveau DB deux lignes avec la même référence | `prisma/schema.prisma` | Mineur (contribue au risque déjà corrigé en 3.1) |
 | 3 | ✅ *Corrigé au Chantier 19* — ~~Panneau admin à 100 % sur données mockées~~ ; `/admin` (vue d'ensemble), `/admin/users`, `/admin/transactions` et `/admin/numbers` lisent désormais Prisma en direct (`lib/admin/queries.ts`), avec pagination réelle sur les 3 listes complètes ; `lib/admin/mock-data.ts` supprimé. Vérifié en conditions réelles (25 utilisateurs/commandes/transactions de test injectés puis nettoyés, pagination page 1↔2 confirmée, zéro erreur console) | `lib/admin/queries.ts`, `app/admin/**`, `components/admin/*-table.tsx` | ~~**Notable**~~ |
 | 4 | `request.json()` non protégé par try/catch dans la route d'inscription — un corps JSON malformé plante en 500 au lieu d'un 400 propre (incohérent avec les deux autres routes POST qui gardent cet appel) | `app/api/register/route.ts:14` | Mineur |
@@ -176,7 +178,7 @@ Aucun fichier de test (`*.test.ts(x)`, `*.spec.ts(x)`, dossier `__tests__`) ni c
 5. Wire les polices Geist dans `tailwind.config.ts` (ou les retirer si le design final ne les utilise pas).
 
 **Chantiers dédiés à planifier** :
-1. **Rate limiting** sur `/api/register`, `/api/auth/*` (Credentials), `/api/payments/checkout` — probablement via un middleware Edge (Upstash Ratelimit ou équivalent).
+1. ~~Rate limiting sur `/api/register`, `/api/auth/*` (Credentials), `/api/payments/checkout`.~~ ✅ Fait au Chantier 20 (`/api/orders` et `/api/webhooks/payment` couverts aussi). Limiteur en mémoire pour l'instant — migrer vers Upstash Redis (ou équivalent) dès qu'un déploiement multi-instance/serverless est envisagé, sans quoi chaque instance a ses propres compteurs et la limite effective se multiplie.
 2. ~~Brancher le panneau admin sur les vraies données (remplacer `lib/admin/mock-data.ts` par de vraies requêtes Prisma).~~ ✅ Fait au Chantier 19.
 3. ~~Rendre la sidebar admin responsive (drawer/hamburger sous `md`).~~ ✅ Fait au Chantier 19.
 4. ~~Mettre en place `loading.tsx`/`error.tsx`/`not-found.tsx` sur les segments clés.~~ ✅ Fait au Chantier 18 (`app/error.tsx`, `app/not-found.tsx`, `app/loading.tsx`, `app/admin/loading.tsx`).

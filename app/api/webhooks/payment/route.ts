@@ -3,6 +3,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
+import { getClientIp, rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+
+// Generous on purpose: real gateways retry aggressively on anything but a
+// clean 200, so this only needs to catch an outright flood/DoS attempt, not
+// normal retry traffic. Checked first, before HMAC/DB work, so a flood is
+// cheap to reject.
+const WEBHOOK_LIMIT = 100;
+const WEBHOOK_WINDOW_MS = 60 * 1000;
 
 // Real gateway payloads vary (Moneroo/PayTech each have their own event
 // shape) — adjust field names once a provider is picked. `amount` is
@@ -41,6 +49,12 @@ function isSignatureValid(rawBody: string, signature: string | null): boolean {
 // stream of retries for a payload we already understood (but, say, don't
 // recognize the reference for) just adds noise without fixing anything.
 export async function POST(request: Request) {
+  const ip = getClientIp(request.headers);
+  const limit = rateLimit(`webhook:${ip}`, WEBHOOK_LIMIT, WEBHOOK_WINDOW_MS);
+  if (!limit.success) {
+    return rateLimitResponse(limit.retryAfterSeconds);
+  }
+
   // Read the raw body BEFORE parsing: the HMAC signature is computed over
   // the exact bytes the gateway sent, and JSON.stringify(JSON.parse(body))
   // is not guaranteed to reproduce that byte-for-byte.

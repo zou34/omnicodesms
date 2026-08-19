@@ -6,6 +6,7 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { getPackById } from "@/lib/packs";
 import { prisma } from "@/lib/prisma";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const checkoutSchema = z.object({
   packId: z.string().min(1),
@@ -13,12 +14,23 @@ const checkoutSchema = z.object({
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
+// Keyed per user: each call creates a PENDING transaction row and (once a
+// real gateway is wired) an outbound API call, so the goal is stopping one
+// account from spamming session creation, not general traffic shaping.
+const CHECKOUT_LIMIT = 10;
+const CHECKOUT_WINDOW_MS = 60 * 1000;
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+    }
+
+    const limit = rateLimit(`checkout:${session.user.id}`, CHECKOUT_LIMIT, CHECKOUT_WINDOW_MS);
+    if (!limit.success) {
+      return rateLimitResponse(limit.retryAfterSeconds);
     }
 
     let body: unknown;

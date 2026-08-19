@@ -5,6 +5,14 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getSmsProvider, ProviderError } from "@/lib/providers";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+
+// Keyed per user (not IP): each purchase debits that user's own balance and
+// calls the upstream SMS provider, so the thing worth throttling is one
+// account rapid-firing — whether via a bug, a compromised session, or a bot
+// script — draining its balance and hammering the provider needlessly.
+const ORDER_LIMIT = 10;
+const ORDER_WINDOW_MS = 60 * 1000;
 
 const createOrderSchema = z.object({
   country: z
@@ -25,6 +33,11 @@ export async function POST(request: Request) {
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+    }
+
+    const limit = rateLimit(`orders:${session.user.id}`, ORDER_LIMIT, ORDER_WINDOW_MS);
+    if (!limit.success) {
+      return rateLimitResponse(limit.retryAfterSeconds);
     }
 
     let body: unknown;
