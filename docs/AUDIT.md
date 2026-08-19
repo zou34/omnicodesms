@@ -14,12 +14,13 @@ Le site est fonctionnellement riche et cohérent — authentification, achat de 
 
 **Mise à jour — Chantier 18** : les 3 constats "Élevé" les plus urgents pour un lancement public ont été corrigés — pages de résilience App Router (`error.tsx`/`not-found.tsx`/`loading.tsx`), SEO de base (`robots.ts`/`sitemap.ts`/Open Graph), et `metadata` par page sur `/login` et `/register` (voir §4, constats #1-3, et §6). Portée volontairement limitée : la suite de tests automatisés (constat élevé restant, §5) est repoussée à un chantier dédié à la demande explicite du produit.
 
-**Top 5 des points restants à traiter en priorité** (mis à jour) :
+**Mise à jour — Chantier 19** : dernier constat "Élevé" côté front-end corrigé — la sidebar admin est désormais un drawer responsive (menu hamburger + backdrop sous `lg`), sans régression sur le rendu desktop (voir §4, constat #4, et §6). Il ne reste plus, au niveau "Élevé", que trois constats non-frontend (rate limiting, données mockées du panneau admin, absence de tests — ce dernier explicitement repoussé à un chantier séparé).
+
+**Top des points restants à traiter en priorité** (mis à jour) :
 1. Absence totale de rate limiting / anti-bruteforce (inscription, connexion, checkout).
 2. Aucun test automatisé (unitaire, intégration, e2e) — **chantier séparé prévu**.
 3. Panneau admin entièrement sur données mockées — aucun accès réel aux utilisateurs/transactions/commandes.
-4. Sidebar admin non responsive (illisible sur mobile).
-5. Incohérence de devise (`$` dans la carte de parrainage vs FCFA partout ailleurs) et modale de recharge sans sémantique de dialogue accessible.
+4. Incohérence de devise (`$` dans la carte de parrainage vs FCFA partout ailleurs) et modale de recharge sans sémantique de dialogue accessible.
 
 **Ce qui est déjà bien fait** (à ne pas casser en corrigeant le reste) : débit de solde atomique et race-safe sur l'achat de numéro, vérification HMAC solide avec comparaison en temps constant sur le webhook, résolution des prix toujours côté serveur (jamais confiance au client), protection IDOR sur `GET /api/orders/[id]`, `.env` correctement ignoré par Git, promotion admin confinée à un script CLI hors-web, nettoyage de cohérence visuelle (indigo→bleu) complet, cohérence linguistique française, animations 100 % CSS respectant `prefers-reduced-motion`.
 
@@ -142,7 +143,7 @@ Solde final du compte de test : **6000 FCFA**, exactement la somme des deux tran
 | 1 | ✅ *Corrigé au Chantier 18* — ~~Aucun `robots.txt`, `sitemap.xml`, ni métadonnées Open Graph/Twitter nulle part~~ ; `app/robots.ts` (exclut `/dashboard`, `/admin`, `/api/`) et `app/sitemap.ts` ajoutés, `metadataBase` + `openGraph` + `twitter` sur `app/layout.tsx` | `app/robots.ts`, `app/sitemap.ts`, `app/layout.tsx` | ~~**Élevé**~~ |
 | 2 | ✅ *Corrigé au Chantier 18* — ~~`/login` et `/register` ne peuvent pas exporter `metadata`~~ ; séparés en wrapper serveur (`page.tsx`, exporte `metadata`) + composant client (`login-form.tsx`/`register-form.tsx`, logique inchangée) | `app/login/page.tsx`+`login-form.tsx`, `app/register/page.tsx`+`register-form.tsx` | ~~**Élevé**~~ |
 | 3 | ✅ *Corrigé au Chantier 18* — ~~Aucun `loading.tsx`, `error.tsx`, `not-found.tsx`~~ ; `app/error.tsx`, `app/not-found.tsx`, `app/loading.tsx`, `app/admin/loading.tsx` ajoutés (thème dark premium cohérent), vérifiés en conditions réelles (route de test qui lève une erreur, puis supprimée) | `app/error.tsx`, `app/not-found.tsx`, `app/loading.tsx`, `app/admin/loading.tsx` | ~~**Élevé**~~ |
-| 4 | Sidebar admin (`w-64` fixe, sans hamburger/collapse) — le panneau admin est essentiellement inutilisable sous ~768px de large | `components/admin/admin-sidebar.tsx`, `app/admin/layout.tsx` | **Élevé** (usage admin) |
+| 4 | ✅ *Corrigé au Chantier 19* — ~~Sidebar admin (`w-64` fixe, sans hamburger/collapse) — le panneau admin est essentiellement inutilisable sous ~768px de large~~ ; drawer responsive (menu hamburger + backdrop + fermeture au clic extérieur/Escape/navigation, `lg:static lg:translate-x-0` préservant le rendu desktop à l'identique), vérifié en conditions réelles (Playwright, desktop 1440px + mobile 390px, zéro erreur console/overflow) | `components/admin/admin-sidebar.tsx`, `app/admin/layout.tsx` | ~~**Élevé**~~ |
 | 5 | Polices Geist chargées via `next/font/local` mais jamais appliquées : `globals.css` force `font-family: Arial, Helvetica, sans-serif` sur `body`, et aucune config Tailwind ne référence les variables `--font-geist-*` — poids mort téléchargé à chaque page sans effet visuel | `app/layout.tsx`, `app/globals.css`, `tailwind.config.ts` | Moyen |
 | 6 | Boutons icône-seule sans `aria-label` en dessous du breakpoint `sm` (le texte est caché, l'icône reste seule, sans nom accessible) | `components/dashboard/dashboard-header.tsx` (bouton Recharger), `components/auth/sign-out-button.tsx` | Moyen |
 | 7 | Modale de recharge sans sémantique de dialogue (`role="dialog"`/`aria-modal`), sans piège de focus, sans restauration du focus au déclencheur à la fermeture | `components/dashboard/recharge-modal.tsx` | Moyen |
@@ -175,7 +176,7 @@ Aucun fichier de test (`*.test.ts(x)`, `*.spec.ts(x)`, dossier `__tests__`) ni c
 **Chantiers dédiés à planifier** :
 1. **Rate limiting** sur `/api/register`, `/api/auth/*` (Credentials), `/api/payments/checkout` — probablement via un middleware Edge (Upstash Ratelimit ou équivalent).
 2. **Brancher le panneau admin sur les vraies données** (remplacer `lib/admin/mock-data.ts` par de vraies requêtes Prisma — les 3 TODO du fichier documentent déjà précisément quoi faire).
-3. **Rendre la sidebar admin responsive** (drawer/hamburger sous `md`).
+3. ~~Rendre la sidebar admin responsive (drawer/hamburger sous `md`).~~ ✅ Fait au Chantier 19.
 4. ~~Mettre en place `loading.tsx`/`error.tsx`/`not-found.tsx` sur les segments clés.~~ ✅ Fait au Chantier 18 (`app/error.tsx`, `app/not-found.tsx`, `app/loading.tsx`, `app/admin/loading.tsx`).
 5. **Démarrer une suite de tests minimale** (Vitest sur `lib/`, Playwright sur les parcours critiques) — **chantier séparé prévu, portée volontairement exclue du Chantier 18**.
 6. **Trancher la passerelle de paiement définitive** (Stripe vs. Flutterwave vs. Moneroo/PayTech) et retirer le SDK installé mais inutilisé ; finaliser `RealSmsProvider` contre un vrai fournisseur.
