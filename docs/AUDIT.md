@@ -103,7 +103,17 @@ Next.js 14.2 (App Router) · React 18 · TypeScript 5 · Prisma 6 / PostgreSQL (
 
 **Après** : la transition PENDING → SUCCESS/FAILED se fait désormais via un `updateMany` avec garde `status: "PENDING"` dans la clause `where`, à l'intérieur d'un `prisma.$transaction` — exactement le pattern déjà utilisé pour le débit du solde dans `app/api/orders/route.ts` (`updateMany` + `gte`). Seule la requête qui obtient `count === 1` est autorisée à créditer le solde ; toute livraison concurrente ou dupliquée obtient `count === 0` et ne fait rien (la route continue de répondre `200` dans tous les cas, pour ne pas déclencher de tempête de retry côté passerelle).
 
-**Statut de vérification** : le correctif compile (`npm run build` propre) et a été relu ligne à ligne contre le pattern déjà validé sur le flux de débit. **Le test de bout en bout avec deux requêtes webhook concurrentes réelles n'a pas pu être exécuté** : la base Supabase du projet était injoignable au moment de l'audit (le pooler répond au niveau TCP mais Postgres ne traite aucune requête — symptôme typique d'un projet Supabase gratuit mis en veille après inactivité). **Action de suivi recommandée** : dès que la base est de nouveau accessible, relancer le test de concurrence (deux appels `fetch` simultanés vers `/api/webhooks/payment` avec signature HMAC valide sur la même référence) et confirmer qu'un seul crédit est appliqué.
+**Statut de vérification** : ✅ **validé en conditions réelles** (base Supabase de nouveau accessible après la pause initiale). Scénario testé sur un compte réel via `/api/payments/checkout` puis deux appels `fetch` envoyés en véritable concurrence (`Promise.all`, sans `await` entre les deux) vers `/api/webhooks/payment` avec la même référence et une signature HMAC valide :
+
+| Scénario | Résultat |
+|---|---|
+| 2 livraisons concurrentes du même webhook (SUCCESS, 5000 FCFA) | Les deux répondent `200`, mais un seul crédit appliqué — logs serveur : `duplicate delivery ignored for checkout_...` sur la requête perdante |
+| Signature invalide | `401`, transaction non touchée |
+| Montant falsifié (999999 au lieu de 1000) | `200` (pas de retry déclenché côté passerelle), transaction laissée `PENDING`, aucun crédit |
+| Règlement correct de cette même transaction ensuite | Crédit appliqué normalement (1000 FCFA) |
+| Rejeu séquentiel du webhook déjà réglé | `200`, aucun second crédit |
+
+Solde final du compte de test : **6000 FCFA**, exactement la somme des deux transactions réglées une seule fois chacune (5000 + 1000) — grand livre et solde parfaitement synchronisés, aucune régression sur les cas déjà couverts avant ce correctif.
 
 ### 3.2 Autres constats (non corrigés dans ce chantier)
 
@@ -173,4 +183,4 @@ Aucun fichier de test (`*.test.ts(x)`, `*.spec.ts(x)`, dossier `__tests__`) ni c
 
 ---
 
-*Ce rapport documente l'état du site au HEAD du commit `74b94ec` + le correctif webhook appliqué dans ce même chantier. Aucune autre correction de code n'a été appliquée — tous les autres constats listés ci-dessus sont volontairement laissés en l'état, en attente d'un chantier dédié.*
+*Ce rapport documente l'état du site au HEAD du commit `74b94ec` + le correctif webhook (§3.1), désormais validé de bout en bout en conditions réelles. Aucune autre correction de code n'a été appliquée — tous les autres constats listés ci-dessus sont volontairement laissés en l'état, en attente d'un chantier dédié.*
