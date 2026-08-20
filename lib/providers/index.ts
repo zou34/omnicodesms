@@ -1,5 +1,6 @@
+import { FiveSimProvider } from "@/lib/providers/FiveSimProvider";
+import { GrizzlySmsProvider } from "@/lib/providers/GrizzlySmsProvider";
 import { MockProvider } from "@/lib/providers/MockProvider";
-import { RealSmsProvider } from "@/lib/providers/RealSmsProvider";
 import type { SmsProvider } from "@/lib/providers/SmsProvider";
 
 export { SmsProvider } from "@/lib/providers/SmsProvider";
@@ -7,7 +8,8 @@ export * from "@/lib/providers/types";
 
 const PROVIDERS = {
   mock: () => new MockProvider(),
-  real: () => new RealSmsProvider(),
+  "5sim": () => new FiveSimProvider(),
+  grizzly: () => new GrizzlySmsProvider(),
 } satisfies Record<string, () => SmsProvider>;
 
 export type ProviderName = keyof typeof PROVIDERS;
@@ -24,17 +26,23 @@ const globalForProvider = globalThis as unknown as {
  * PrismaClient.
  *
  * Selection:
- *   - `SMS_PROVIDER` set explicitly ("mock" | "real") always wins — lets
- *     you force either one regardless of what else is configured (e.g.
- *     force "real" with no API key to exercise the graceful-failure path).
- *   - Otherwise: "real" if SMS_PROVIDER_API_KEY is set, "mock" if not.
+ *   - `SMS_PROVIDER` set explicitly ("mock" | "5sim" | "grizzly") always
+ *     wins — lets you force any of them regardless of what keys are set.
+ *   - Otherwise, auto-detected from whichever API key is present:
+ *     SIM5_API_KEY -> "5sim", else GRIZZLY_API_KEY -> "grizzly", else
+ *     "mock". 5sim wins the tie-break if both are set — override with
+ *     SMS_PROVIDER=grizzly to prefer the other one.
  */
 export function getSmsProvider(): SmsProvider {
   if (globalForProvider.smsProvider) {
     return globalForProvider.smsProvider;
   }
 
-  const defaultProviderName: ProviderName = process.env.SMS_PROVIDER_API_KEY ? "real" : "mock";
+  const defaultProviderName: ProviderName = process.env.SIM5_API_KEY
+    ? "5sim"
+    : process.env.GRIZZLY_API_KEY
+      ? "grizzly"
+      : "mock";
   const providerName = (process.env.SMS_PROVIDER as ProviderName | undefined) ?? defaultProviderName;
   const factory = PROVIDERS[providerName];
 
