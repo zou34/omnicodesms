@@ -1,6 +1,7 @@
 import { FiveSimProvider } from "@/lib/providers/FiveSimProvider";
 import { GrizzlySmsProvider } from "@/lib/providers/GrizzlySmsProvider";
 import { MockProvider } from "@/lib/providers/MockProvider";
+import { SmartSmsProvider } from "@/lib/providers/SmartSmsProvider";
 import type { SmsProvider } from "@/lib/providers/SmsProvider";
 
 export { SmsProvider } from "@/lib/providers/SmsProvider";
@@ -10,6 +11,9 @@ const PROVIDERS = {
   mock: () => new MockProvider(),
   "5sim": () => new FiveSimProvider(),
   grizzly: () => new GrizzlySmsProvider(),
+  // 5sim primary, GrizzlySMS secondary fallback on any error (out of
+  // stock, insufficient balance, API failure) — see SmartSmsProvider.
+  smart: () => new SmartSmsProvider(),
 } satisfies Record<string, () => SmsProvider>;
 
 export type ProviderName = keyof typeof PROVIDERS;
@@ -26,23 +30,24 @@ const globalForProvider = globalThis as unknown as {
  * PrismaClient.
  *
  * Selection:
- *   - `SMS_PROVIDER` set explicitly ("mock" | "5sim" | "grizzly") always
- *     wins — lets you force any of them regardless of what keys are set.
- *   - Otherwise, auto-detected from whichever API key is present:
- *     SIM5_API_KEY -> "5sim", else GRIZZLY_API_KEY -> "grizzly", else
- *     "mock". 5sim wins the tie-break if both are set — override with
- *     SMS_PROVIDER=grizzly to prefer the other one.
+ *   - `SMS_PROVIDER` set explicitly ("mock" | "5sim" | "grizzly" | "smart")
+ *     always wins — lets you force any of them regardless of what keys
+ *     are set.
+ *   - Otherwise, auto-detected from which API keys are present: both
+ *     SIM5_API_KEY and GRIZZLY_API_KEY -> "smart" (5sim primary,
+ *     GrizzlySMS fallback), only one of them -> that single provider,
+ *     neither -> "mock".
  */
 export function getSmsProvider(): SmsProvider {
   if (globalForProvider.smsProvider) {
     return globalForProvider.smsProvider;
   }
 
-  const defaultProviderName: ProviderName = process.env.SIM5_API_KEY
-    ? "5sim"
-    : process.env.GRIZZLY_API_KEY
-      ? "grizzly"
-      : "mock";
+  const hasFiveSim = Boolean(process.env.SIM5_API_KEY);
+  const hasGrizzly = Boolean(process.env.GRIZZLY_API_KEY);
+
+  const defaultProviderName: ProviderName =
+    hasFiveSim && hasGrizzly ? "smart" : hasFiveSim ? "5sim" : hasGrizzly ? "grizzly" : "mock";
   const providerName = (process.env.SMS_PROVIDER as ProviderName | undefined) ?? defaultProviderName;
   const factory = PROVIDERS[providerName];
 
