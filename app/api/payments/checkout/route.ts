@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { authOptions } from "@/lib/auth";
 import { getPackById } from "@/lib/packs";
+import { getPaymentProvider, PaymentProviderError } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -72,60 +73,35 @@ export async function POST(request: Request) {
       },
     });
 
-    // No live gateway key configured yet — hand back a fake checkout URL so
-    // the redirect flow can be built and tested end-to-end locally. Delete
-    // this branch once PAYMENT_API_KEY is set; the real call below already
-    // does the right thing.
-    if (!process.env.PAYMENT_API_KEY) {
-      const fakeCheckoutUrl = `${APP_URL}/dashboard?mock_checkout=${reference}`;
-      return NextResponse.json({ checkoutUrl: fakeCheckoutUrl, reference }, { status: 200 });
-    }
-
-    // --- Real gateway call -------------------------------------------------
-    // Shaped after a typical Moneroo/PayTech "create checkout session" call.
-    // Field names WILL need adjusting to match whichever gateway is chosen —
-    // this is a faithful skeleton of the request, not a verified contract.
-    const gatewayResponse = await fetch("https://api.moneroo.io/v1/payments/initialize", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.PAYMENT_API_KEY}`,
-      },
-      body: JSON.stringify({
-        amount: pack.priceFcfa,
-        currency: "XOF",
-        description: `Recharge OmniCodeSMS — pack ${pack.activations} activations`,
+    // Provider-agnostic from here: whichever PaymentProvider is active
+    // (MockPaymentProvider today, a real aggregator once one is chosen —
+    // see lib/payments/index.ts) is the only thing that knows how to talk
+    // to a specific gateway's API. This route only ever deals with our own
+    // ledger and the shared PaymentProvider contract.
+    try {
+      const provider = getPaymentProvider();
+      const { checkoutUrl } = await provider.initializePayment({
         reference,
-        customer: {
-          email: session.user.email,
-        },
-        metadata: {
-          userId: session.user.id,
-          packId: pack.id,
-          transactionId: transaction.id,
-        },
-        return_url: `${APP_URL}/dashboard?payment=success`,
-        cancel_url: `${APP_URL}/dashboard?payment=cancelled`,
-        webhook_url: `${APP_URL}/api/webhooks/payment`,
-      }),
-    });
+        amountFcfa: pack.priceFcfa,
+        description: `Recharge OmniCodeSMS — pack ${pack.activations} activations`,
+        customerEmail: session.user.email ?? "",
+        returnUrl: `${APP_URL}/dashboard?payment=success`,
+        cancelUrl: `${APP_URL}/dashboard?payment=cancelled`,
+      });
 
-    if (!gatewayResponse.ok) {
+      return NextResponse.json({ checkoutUrl, reference }, { status: 200 });
+    } catch (error) {
       // Nothing to confirm later if the gateway never created a session.
       await prisma.transaction.update({
         where: { id: transaction.id },
         data: { status: "FAILED" },
       });
 
-      return NextResponse.json(
-        { error: "Le fournisseur de paiement est indisponible." },
-        { status: 502 }
-      );
+      if (error instanceof PaymentProviderError) {
+        return NextResponse.json({ error: error.message }, { status: 502 });
+      }
+      throw error;
     }
-
-    const gatewayData = await gatewayResponse.json();
-
-    return NextResponse.json({ checkoutUrl: gatewayData.checkout_url, reference }, { status: 200 });
   } catch (error) {
     console.error("[POST /api/payments/checkout]", error);
     return NextResponse.json({ error: "Une erreur interne est survenue." }, { status: 500 });

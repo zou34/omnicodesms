@@ -1,43 +1,15 @@
-import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
-import { z } from "zod";
 
+import { getPaymentProvider } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
 import { getClientIp, rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 // Generous on purpose: real gateways retry aggressively on anything but a
 // clean 200, so this only needs to catch an outright flood/DoS attempt, not
-// normal retry traffic. Checked first, before HMAC/DB work, so a flood is
-// cheap to reject.
+// normal retry traffic. Checked first, before signature/DB work, so a
+// flood is cheap to reject.
 const WEBHOOK_LIMIT = 100;
 const WEBHOOK_WINDOW_MS = 60 * 1000;
-
-// Real gateway payloads vary (Moneroo/PayTech each have their own event
-// shape) — adjust field names once a provider is picked. `amount` is
-// optional so we can cross-check it when the gateway sends it, without
-// hard-failing on providers that don't.
-const webhookPayloadSchema = z.object({
-  reference: z.string().min(1),
-  status: z.enum(["SUCCESS", "FAILED"]),
-  amount: z.number().optional(),
-});
-
-function isSignatureValid(rawBody: string, signature: string | null): boolean {
-  const secret = process.env.PAYMENT_WEBHOOK_SECRET;
-  if (!secret || !signature) return false;
-
-  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
-
-  const expectedBuffer = Buffer.from(expected, "utf8");
-  const signatureBuffer = Buffer.from(signature, "utf8");
-
-  // Buffers must be equal length before timingSafeEqual — and mismatched
-  // length already means "not a match", so bail out the same way instead
-  // of throwing.
-  if (expectedBuffer.length !== signatureBuffer.length) return false;
-
-  return timingSafeEqual(expectedBuffer, signatureBuffer);
-}
 
 // Confirms (or rejects) a payment initiated via /api/payments/checkout.
 // This is the single most security-sensitive route in the app: it's the
@@ -55,33 +27,32 @@ export async function POST(request: Request) {
     return rateLimitResponse(limit.retryAfterSeconds);
   }
 
-  // Read the raw body BEFORE parsing: the HMAC signature is computed over
+  // Read the raw body BEFORE parsing: signature schemes are computed over
   // the exact bytes the gateway sent, and JSON.stringify(JSON.parse(body))
   // is not guaranteed to reproduce that byte-for-byte.
   const rawBody = await request.text();
-  const signature = request.headers.get("x-webhook-signature");
 
-  if (!isSignatureValid(rawBody, signature)) {
-    console.warn("[POST /api/webhooks/payment] rejected: invalid or missing signature");
-    return NextResponse.json({ error: "Signature invalide." }, { status: 401 });
-  }
+  // Provider-agnostic from here: whichever gateway's signature scheme and
+  // payload shape apply is entirely MockPaymentProvider's (or a future
+  // real provider's) concern — this route only cares about the verified
+  // event it hands back.
+  const verification = await getPaymentProvider().verifyWebhook(rawBody, request.headers);
 
-  let payload: unknown;
-  try {
-    payload = JSON.parse(rawBody);
-  } catch {
-    return NextResponse.json({ error: "Corps de requête JSON invalide." }, { status: 400 });
-  }
-
-  const parsed = webhookPayloadSchema.safeParse(payload);
-  if (!parsed.success) {
+  if (!verification.valid) {
+    if (verification.reason === "INVALID_SIGNATURE") {
+      console.warn("[POST /api/webhooks/payment] rejected: invalid or missing signature");
+      return NextResponse.json({ error: "Signature invalide." }, { status: 401 });
+    }
+    if (verification.reason === "MALFORMED_BODY") {
+      return NextResponse.json({ error: "Corps de requête JSON invalide." }, { status: 400 });
+    }
     // Signed by someone who holds our secret, but not a shape we
     // recognize — log for investigation, still 200 so it isn't retried.
-    console.error("[POST /api/webhooks/payment] unexpected payload shape", payload);
+    console.error("[POST /api/webhooks/payment] unexpected payload shape", rawBody);
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
-  const { reference, status, amount } = parsed.data;
+  const { reference, status, amountFcfa } = verification.event;
 
   try {
     const transaction = await prisma.transaction.findFirst({
@@ -103,9 +74,9 @@ export async function POST(request: Request) {
     // Defense in depth: if the gateway tells us the amount it collected,
     // it must match what we asked for. A mismatch here is a red flag, not
     // something to silently accept.
-    if (amount !== undefined && Number(transaction.amount) !== amount) {
+    if (amountFcfa !== undefined && Number(transaction.amount) !== amountFcfa) {
       console.error(
-        `[POST /api/webhooks/payment] amount mismatch for ${reference}: expected ${transaction.amount}, got ${amount}`
+        `[POST /api/webhooks/payment] amount mismatch for ${reference}: expected ${transaction.amount}, got ${amountFcfa}`
       );
       return NextResponse.json({ received: true }, { status: 200 });
     }
