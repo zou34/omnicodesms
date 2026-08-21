@@ -10,13 +10,25 @@ interface PurchasePanelProps {
   services: ServiceVM[];
   pricing: PricingVM[];
   onOrderCreated: (order: OrderVM) => void;
+  onInsufficientBalance: () => void;
 }
 
-export function PurchasePanel({ countries, services, pricing, onOrderCreated }: PurchasePanelProps) {
+export function PurchasePanel({
+  countries,
+  services,
+  pricing,
+  onOrderCreated,
+  onInsufficientBalance,
+}: PurchasePanelProps) {
   const [countryId, setCountryId] = useState(countries[0]?.id ?? "");
   const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
   const [isBuying, setIsBuying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Only true for a 402 with code INSUFFICIENT_BALANCE — the user's own
+  // wallet, checked before any provider call. A 502 with the same code
+  // means our own provider account is short, which recharging the user's
+  // wallet does nothing to fix, so that case keeps the plain error banner.
+  const [isOwnBalanceLow, setIsOwnBalanceLow] = useState(false);
 
   const selectedCountry = countries.find((c) => c.id === countryId);
   const selectedService = services.find((s) => s.id === serviceId);
@@ -31,6 +43,7 @@ export function PurchasePanel({ countries, services, pricing, onOrderCreated }: 
 
     setIsBuying(true);
     setError(null);
+    setIsOwnBalanceLow(false);
 
     try {
       const response = await fetch("/api/orders", {
@@ -43,6 +56,7 @@ export function PurchasePanel({ countries, services, pricing, onOrderCreated }: 
 
       if (!response.ok) {
         setError(data.error ?? "Impossible de créer la commande.");
+        setIsOwnBalanceLow(response.status === 402 && data.code === "INSUFFICIENT_BALANCE");
         return;
       }
 
@@ -121,8 +135,17 @@ export function PurchasePanel({ countries, services, pricing, onOrderCreated }: 
       </div>
 
       {error && (
-        <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
-          {error}
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
+          <span>{error}</span>
+          {isOwnBalanceLow && (
+            <button
+              type="button"
+              onClick={onInsufficientBalance}
+              className="shrink-0 rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-300 transition hover:bg-red-500/30"
+            >
+              Recharger
+            </button>
+          )}
         </div>
       )}
 
