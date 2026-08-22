@@ -58,6 +58,14 @@ function randomDigits(length: number): string {
   return result;
 }
 
+// Grouped for readability (e.g. "+1 234 567 890") rather than one long
+// digit run — cosmetic only, no real per-country formatting rules, but
+// looks like a real number for screenshots/demos.
+function formatPhoneNumber(dialCode: string, digits: string): string {
+  const groups = digits.match(/.{1,3}/g) ?? [digits];
+  return `+${dialCode} ${groups.join(" ")}`;
+}
+
 /**
  * Simulates a real provider end-to-end: fake balance, plausible pricing,
  * fake phone numbers, and a rented number that "receives" a random SMS
@@ -124,7 +132,7 @@ export class MockProvider extends SmsProvider {
     }
 
     const providerOrderId = `mock_${this.nextOrderId++}_${Date.now()}`;
-    const phoneNumber = `+${dialCode}${randomDigits(9)}`;
+    const phoneNumber = formatPhoneNumber(dialCode, randomDigits(9));
     const expiresAt = new Date(Date.now() + ORDER_TTL_MS);
 
     // Simulates the SMS arriving after a random, realistic delay.
@@ -170,6 +178,32 @@ export class MockProvider extends SmsProvider {
     if (order.status === "PENDING" && order.expiresAt.getTime() < Date.now()) {
       clearTimeout(order.receiveTimer);
       order.status = "EXPIRED";
+    }
+
+    return {
+      status: order.status,
+      code: order.code,
+      fullText: order.code ? `Your ${order.service} code is ${order.code}` : null,
+    };
+  }
+
+  /**
+   * Demo/testing aid, not part of the SmsProvider contract — no real
+   * provider can be told "deliver the code now". Skips the random 3-8s
+   * wait so someone recording a walkthrough isn't stuck watching a spinner.
+   * Idempotent: calling it on an order that already has a result just
+   * returns that result unchanged.
+   */
+  async simulateReceipt(orderId: string): Promise<SmsResult> {
+    const order = this.orders.get(orderId);
+    if (!order) {
+      throw new ProviderError(`Commande mock introuvable: ${orderId}.`, "ORDER_NOT_FOUND");
+    }
+
+    if (order.status === "PENDING") {
+      clearTimeout(order.receiveTimer);
+      order.status = "RECEIVED";
+      order.code = randomDigits(6);
     }
 
     return {

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { prisma } from "@/lib/prisma";
+import { getSmsProvider } from "@/lib/providers";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -37,6 +38,7 @@ export default async function DashboardPage() {
       userName={user.name}
       userEmail={user.email}
       initialBalance={user.balance.toString()}
+      isMockSmsProvider={getSmsProvider().name === "mock"}
       countries={countries.map((country) => ({
         id: country.id,
         code: country.code,
