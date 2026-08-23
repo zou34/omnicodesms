@@ -13,7 +13,8 @@ const checkoutSchema = z.object({
   packId: z.string().min(1),
 });
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+// `||`, not `??` — see app/layout.tsx for why an empty string must also fall back.
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 // Keyed per user: each call creates a PENDING transaction row and (once a
 // real gateway is wired) an outbound API call, so the goal is stopping one

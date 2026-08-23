@@ -1,6 +1,9 @@
 import type { MetadataRoute } from "next";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+// `||`, not `??`: Vercel can have this var present-but-empty (not just
+// unset) if it's misconfigured in the dashboard — an empty string isn't
+// nullish, so `??` wouldn't fall back and `new URL("")` would crash.
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 // Public, crawlable routes only — /dashboard and /admin are excluded here
 // the same way they're excluded in app/robots.ts.

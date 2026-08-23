@@ -8,7 +8,8 @@ import type {
   WebhookVerificationResult,
 } from "@/lib/payments/types";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+// `||`, not `??` — see app/layout.tsx for why an empty string must also fall back.
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 const webhookPayloadSchema = z.object({
   reference: z.string().min(1),

@@ -4,7 +4,8 @@ import { z } from "zod";
 
 import { getPaymentProvider } from "@/lib/payments";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+// `||`, not `??` — see app/layout.tsx for why an empty string must also fall back.
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 const bodySchema = z.object({
   reference: z.string().min(1),

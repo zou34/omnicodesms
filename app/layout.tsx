@@ -15,7 +15,12 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+// `||`, not `??`: Vercel can have this var present-but-empty (not just
+// unset) if it's misconfigured in the dashboard — an empty string isn't
+// nullish, so `??` wouldn't fall back and `new URL("")` below would crash
+// (this is what broke the first production deploy: metadataBase threw
+// ERR_INVALID_URL for every page, first surfaced on /admin/numbers).
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 const SITE_DESCRIPTION = "OmniCodeSMS — plateforme de numéros virtuels pour la réception de SMS.";
 
 export const metadata: Metadata = {
