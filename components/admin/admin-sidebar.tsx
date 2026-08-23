@@ -94,7 +94,7 @@ export function AdminSidebar() {
 
         <nav className="flex-1 space-y-1 px-3">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-            const isActive = href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+            const isActive = href === "/admin" ? pathname === "/admin" : (pathname ?? "").startsWith(href);
 
             return (
               <Link

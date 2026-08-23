@@ -11,11 +11,11 @@ import { Suspense, useState } from "react";
 // auth/layout: a real gateway's page wouldn't share our session either.
 function MockCheckoutContent() {
   const searchParams = useSearchParams();
-  const reference = searchParams.get("reference");
-  const amount = searchParams.get("amount");
-  const description = searchParams.get("description");
-  const returnUrl = searchParams.get("return_url");
-  const cancelUrl = searchParams.get("cancel_url");
+  const reference = searchParams?.get("reference") ?? null;
+  const amount = searchParams?.get("amount") ?? null;
+  const description = searchParams?.get("description") ?? null;
+  const returnUrl = searchParams?.get("return_url") ?? null;
+  const cancelUrl = searchParams?.get("cancel_url") ?? null;
 
   const [isProcessing, setIsProcessing] = useState<"success" | "failed" | null>(null);
   const [error, setError] = useState<string | null>(null);

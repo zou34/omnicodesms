@@ -19,7 +19,7 @@ export function PaymentStatusBanner() {
   // (stripping `?payment=`), which makes `useSearchParams()` re-render
   // with an empty value — reading it live here would make the banner
   // vanish right after it appears.
-  const [payment] = useState(() => searchParams.get("payment"));
+  const [payment] = useState(() => searchParams?.get("payment") ?? null);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
