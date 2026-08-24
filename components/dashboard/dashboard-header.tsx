@@ -3,6 +3,7 @@
 import { PlusCircle, Wallet } from "lucide-react";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { InstallPwaButton } from "@/components/pwa/install-pwa-button";
 
 interface DashboardHeaderProps {
   userName: string | null;
@@ -37,6 +38,9 @@ export function DashboardHeader({
             <span className="hidden md:inline">Recharger mon solde</span>
             <span className="hidden sm:inline md:hidden">Recharger</span>
           </button>
+
+          <InstallPwaButton className="flex shrink-0 items-center justify-center rounded-full border border-slate-700 p-2 text-slate-300 transition hover:bg-slate-800 hover:text-white" />
+
 
           <div className="hidden text-right lg:block">
             <p className="text-sm font-medium text-white">{userName ?? "Utilisateur"}</p>

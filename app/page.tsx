@@ -10,6 +10,7 @@ import { PhoneShowcase } from "@/components/landing/phone-showcase";
 import { Pricing } from "@/components/landing/pricing";
 import { ReferralSection } from "@/components/landing/referral-section";
 import { WhyChooseUs } from "@/components/landing/why-choose-us";
+import { InstallPwaButton } from "@/components/pwa/install-pwa-button";
 import { GlowingButton } from "@/components/ui/glowing-button";
 
 export default function Home() {
@@ -31,6 +32,9 @@ export default function Home() {
             <span className="text-xl font-bold tracking-tight">OmniCodeSMS</span>
 
             <nav className="hidden items-center gap-6 sm:flex">
+              <InstallPwaButton className="flex items-center gap-1.5 rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-blue-100 transition hover:border-white/40 hover:text-white">
+                Installer l&apos;application
+              </InstallPwaButton>
               <Link href="/login" className="text-sm font-medium text-blue-100 transition hover:text-white">
                 Connexion
               </Link>
@@ -98,6 +102,7 @@ export default function Home() {
 
       {/* Mobile-only fixed bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-20 flex gap-3 border-t border-white/10 bg-blue-950/90 p-4 backdrop-blur sm:hidden">
+        <InstallPwaButton className="flex shrink-0 items-center justify-center rounded-full border border-white/30 p-3 text-white transition hover:bg-white/10" />
         <Link
           href="/login"
           className="flex-1 rounded-full border border-white/30 py-3 text-center text-sm font-semibold text-white"
