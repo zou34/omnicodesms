@@ -33,7 +33,7 @@ export function ReferralCodeCard() {
       </div>
 
       <p className="mt-4 text-xs leading-relaxed text-blue-100">
-        Partagez ce code et gagnez 5$ à chaque filleul actif.
+        Partagez ce code et gagnez 500 FCFA à chaque filleul actif.
       </p>
     </div>
   );

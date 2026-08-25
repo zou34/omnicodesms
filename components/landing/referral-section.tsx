@@ -15,7 +15,7 @@ export function ReferralSection() {
           </h2>
 
           <p className="mt-5 max-w-lg text-base leading-relaxed text-blue-100 sm:text-lg">
-            Quand votre filleul recharge, vous gagnez 5$ et il gagne 5$. Tout le monde y gagne !
+            Quand votre filleul recharge, vous gagnez 500 FCFA et il gagne 500 FCFA. Tout le monde y gagne !
           </p>
 
           <ul className="mt-8 space-y-3">
