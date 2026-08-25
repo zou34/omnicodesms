@@ -14,4 +14,18 @@ export class MockEmailProvider extends EmailProvider {
   async sendPasswordResetEmail({ to, resetUrl }: { to: string; resetUrl: string }): Promise<void> {
     console.log(`[MockEmailProvider] Password reset link for ${to}: ${resetUrl}`);
   }
+
+  async sendContactMessage({
+    to,
+    from,
+    name,
+    message,
+  }: {
+    to: string;
+    from: string;
+    name: string;
+    message: string;
+  }): Promise<void> {
+    console.log(`[MockEmailProvider] Contact message for ${to}, from ${name} <${from}>: ${message}`);
+  }
 }

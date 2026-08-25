@@ -38,6 +38,34 @@ export class ResendEmailProvider extends EmailProvider {
       throw new Error("Échec de l'envoi de l'e-mail de réinitialisation.");
     }
   }
+
+  async sendContactMessage({
+    to,
+    from,
+    name,
+    message,
+  }: {
+    to: string;
+    from: string;
+    name: string;
+    message: string;
+  }): Promise<void> {
+    const senderAddress = process.env.EMAIL_FROM || DEFAULT_FROM;
+
+    const { error } = await this.client.emails.send({
+      from: senderAddress,
+      to,
+      replyTo: from,
+      subject: `Nouveau message de contact — ${name}`,
+      html: renderContactMessageHtml({ name, from, message }),
+      text: `Nouveau message de contact\n\nDe : ${name} <${from}>\n\n${message}`,
+    });
+
+    if (error) {
+      console.error("[ResendEmailProvider] contact notification failed", error);
+      throw new Error("Échec de l'envoi de la notification de contact.");
+    }
+  }
 }
 
 function renderPasswordResetHtml(resetUrl: string): string {
@@ -58,4 +86,36 @@ function renderPasswordResetHtml(resetUrl: string): string {
       </div>
     </div>
   `;
+}
+
+function renderContactMessageHtml({
+  name,
+  from,
+  message,
+}: {
+  name: string;
+  from: string;
+  message: string;
+}): string {
+  return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color: #0f172a; padding: 32px 16px;">
+      <div style="max-width: 480px; margin: 0 auto; background-color: #1e293b; border-radius: 16px; padding: 32px; border: 1px solid #334155;">
+        <p style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0 0 24px;">OmniCodeSMS</p>
+        <h1 style="color: #ffffff; font-size: 18px; margin: 0 0 12px;">Nouveau message de contact</h1>
+        <p style="color: #94a3b8; font-size: 14px; margin: 0 0 16px;">
+          De <strong style="color: #ffffff;">${escapeHtml(name)}</strong> — ${escapeHtml(from)}
+        </p>
+        <p style="color: #e2e8f0; font-size: 14px; line-height: 1.6; white-space: pre-wrap; background-color: #0f172a; border-radius: 8px; padding: 16px; margin: 0;">${escapeHtml(message)}</p>
+      </div>
+    </div>
+  `;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

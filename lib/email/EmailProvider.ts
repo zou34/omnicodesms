@@ -9,4 +9,11 @@ export abstract class EmailProvider {
   abstract readonly name: string;
 
   abstract sendPasswordResetEmail(params: { to: string; resetUrl: string }): Promise<void>;
+
+  abstract sendContactMessage(params: {
+    to: string;
+    from: string;
+    name: string;
+    message: string;
+  }): Promise<void>;
 }
