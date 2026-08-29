@@ -64,7 +64,7 @@ export default function Home() {
 
             <GlowingButton
               href="/register"
-              className="mt-10 px-8 py-4 text-base font-bold text-blue-900 shadow-xl shadow-blue-950/30"
+              className="mt-6 px-8 py-4 text-base font-bold text-blue-900 shadow-xl shadow-blue-950/30 sm:mt-10"
               maskClassName="bg-white group-hover:bg-blue-50"
             >
               Commencer Maintenant

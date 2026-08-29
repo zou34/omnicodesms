@@ -69,13 +69,17 @@ export function RechargeModal({ open, onClose }: RechargeModalProps) {
   }
 
   return (
+    // `items-start` + `overflow-y-auto` + `my-auto` sur la boîte : la modale
+    // reste centrée quand elle tient dans l'écran, et devient scrollable au
+    // lieu d'être rognée en haut (titre + bouton de fermeture inaccessibles)
+    // sur les petits écrans de téléphone.
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-black/70 p-4 backdrop-blur-sm"
       onClick={handleClose}
     >
       <div
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl sm:p-8"
+        className="my-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl sm:p-8"
       >
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">

@@ -29,9 +29,13 @@ export function DashboardHeader({
             <span className="whitespace-nowrap">{balance.toLocaleString("fr-FR")} FCFA</span>
           </div>
 
+          {/* aria-label indispensable : sous le breakpoint `sm` les deux
+              libellés sont masqués et le bouton n'était plus qu'une icône
+              sans nom accessible (invisible pour un lecteur d'écran). */}
           <button
             type="button"
             onClick={onOpenRecharge}
+            aria-label="Recharger mon solde"
             className="flex items-center gap-1.5 rounded-full bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 sm:px-4 sm:text-sm"
           >
             <PlusCircle className="h-4 w-4 shrink-0" />

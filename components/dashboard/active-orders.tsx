@@ -111,7 +111,7 @@ function OrderCard({
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
       <div className="flex items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <p className="text-sm text-slate-400">
             {order.countryName} ({order.countryCode}) · {order.serviceName}
           </p>
@@ -119,7 +119,7 @@ function OrderCard({
             <button
               type="button"
               onClick={() => copyToClipboard(order.phoneNumber!, "phone")}
-              className="mt-1 flex items-center gap-2 font-mono text-base text-white hover:text-blue-400"
+              className="mt-1 flex items-center gap-2 whitespace-nowrap font-mono text-base text-white hover:text-blue-400"
             >
               {order.phoneNumber}
               <Copy className="h-3.5 w-3.5" />
@@ -133,9 +133,13 @@ function OrderCard({
 
       <div className="mt-3 border-t border-slate-800 pt-3">
         {order.status === "PENDING" && (
-          <div className="flex items-center justify-between gap-3">
-            <span className="flex items-center gap-2 text-sm text-amber-400">
-              <Clock className="h-4 w-4 animate-pulse" />
+          // `flex-wrap` + `whitespace-nowrap` : sur un écran de téléphone le
+          // bouton "Simuler réception SMS" (shrink-0) écrasait le libellé, qui
+          // se cassait alors sur quatre lignes. Il passe désormais à la ligne
+          // suivante au lieu de comprimer le texte.
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <span className="flex items-center gap-2 whitespace-nowrap text-sm text-amber-400">
+              <Clock className="h-4 w-4 shrink-0 animate-pulse" />
               En attente du SMS...
             </span>
             {isMockSmsProvider && (
