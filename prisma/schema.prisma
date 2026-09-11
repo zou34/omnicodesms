@@ -171,11 +171,15 @@ enum TransactionStatus {
 }
 
 enum PaymentProvider {
+  // STRIPE et FLUTTERWAVE ne sont jamais écrits par le code (packages npm
+  // désinstallés, variables d'env supprimées). Conservés volontairement :
+  // retirer une valeur d'un enum PostgreSQL oblige à recréer le type et à
+  // convertir la colonne, un risque inutile pour deux valeurs inertes.
   STRIPE
   FLUTTERWAVE
   WALLET
-  MOCK // simulated payment confirmation, pending real Stripe/Flutterwave wiring
-  GATEWAY // real payment gateway confirmation (Moneroo/PayTech), via /api/webhooks/payment
+  MOCK // simulated payment confirmation, used while no real gateway is wired
+  GATEWAY // real payment gateway confirmation (SasPay), via /api/webhooks/payment
 }
 
 model Transaction {
@@ -195,6 +199,7 @@ model Transaction {
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
+  @@unique([provider, providerRef])
   @@index([userId])
   @@index([orderId])
 }
