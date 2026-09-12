@@ -4,13 +4,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { authOptions } from "@/lib/auth";
-import { getPackById } from "@/lib/packs";
+import { getRechargeAmountById } from "@/lib/packs";
 import { getPaymentProvider, PaymentProviderError } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const checkoutSchema = z.object({
-  packId: z.string().min(1),
+  amountId: z.string().min(1),
 });
 
 // `||`, not `??` — see app/layout.tsx for why an empty string must also fall back.
@@ -50,11 +50,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Never trust a client-submitted price — the pack (and therefore the
-    // amount charged) is always resolved server-side from lib/packs.ts.
-    const pack = getPackById(parsed.data.packId);
-    if (!pack) {
-      return NextResponse.json({ error: "Pack introuvable." }, { status: 404 });
+    // Never trust a client-submitted amount — it is always resolved
+    // server-side from lib/packs.ts, a fixed list of recharge amounts.
+    const rechargeAmount = getRechargeAmountById(parsed.data.amountId);
+    if (!rechargeAmount) {
+      return NextResponse.json({ error: "Montant de recharge introuvable." }, { status: 404 });
     }
 
     const reference = `checkout_${randomUUID()}`;
@@ -69,22 +69,21 @@ export async function POST(request: Request) {
         status: "PENDING",
         provider: "GATEWAY",
         providerRef: reference,
-        amount: pack.priceFcfa,
+        amount: rechargeAmount.priceFcfa,
         currency: "FCFA",
       },
     });
 
     // Provider-agnostic from here: whichever PaymentProvider is active
     // (SasPayProvider today — see lib/payments/index.ts) is the only thing
-    // see lib/payments/index.ts) is the only thing that knows how to talk
     // to a specific gateway's API. This route only ever deals with our own
     // ledger and the shared PaymentProvider contract.
     try {
       const provider = getPaymentProvider();
       const { checkoutUrl } = await provider.initializePayment({
         reference,
-        amountFcfa: pack.priceFcfa,
-        description: `Recharge OmniCodeSMS — pack ${pack.activations} activations`,
+        amountFcfa: rechargeAmount.priceFcfa,
+        description: `Recharge OmniCodeSMS — ${rechargeAmount.priceFcfa} FCFA`,
         customerEmail: session.user.email ?? "",
         returnUrl: `${APP_URL}/dashboard?payment=success`,
         cancelUrl: `${APP_URL}/dashboard?payment=cancelled`,

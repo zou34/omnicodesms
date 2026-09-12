@@ -1,53 +1,53 @@
-// Single source of truth for the FCFA activation packs — used by the
-// public pricing page (components/landing/pricing.tsx) AND the dashboard
-// recharge modal (components/dashboard/recharge-modal.tsx), so the two can
-// never drift apart. The recharge API route also validates against this
-// list server-side rather than trusting a client-submitted price.
+// Single source of truth for the FCFA recharge amounts — used by the public
+// pricing page (components/landing/pricing.tsx) AND the dashboard recharge
+// modal (components/dashboard/recharge-modal.tsx), so the two can never
+// drift apart. The checkout API route also validates against this list
+// server-side rather than trusting a client-submitted amount.
+//
+// Modèle "crédit pur", pas "packs d'activations" : le catalogue (voir
+// scripts/sync-catalog.ts) tarife chaque pays/service indépendamment et
+// évolue avec les coûts fournisseur, si bien qu'aucun ratio FCFA-par-
+// activation fixe ne tient dans la durée. C'est aussi le modèle observé
+// chez tous les concurrents étudiés (5sim, SMS-Activate, OnlineSim, et les
+// acteurs FCFA/Mobile Money directement comparables NumVirtuel et
+// VirtuNum) : un solde rechargé, débité au prix réel affiché à l'achat —
+// jamais un volume d'activations promis à l'avance.
 
-export interface Pack {
+export interface RechargeAmount {
   id: string;
-  activations: number;
   priceFcfa: number;
-  perActivationLabel: string;
   discountTag?: string;
   featured?: boolean;
   perks?: string[];
 }
 
-export const PACKS: Pack[] = [
+export const RECHARGE_AMOUNTS: RechargeAmount[] = [
   {
-    id: "pack-10",
-    activations: 10,
+    id: "recharge-500",
+    priceFcfa: 500,
+  },
+  {
+    id: "recharge-1000",
     priceFcfa: 1000,
-    perActivationLabel: "100 FCFA/activation",
   },
   {
-    id: "pack-32",
-    activations: 32,
+    id: "recharge-3000",
     priceFcfa: 3000,
-    perActivationLabel: "94 FCFA/activation",
-    discountTag: "-7%",
   },
   {
-    id: "pack-55",
-    activations: 55,
+    id: "recharge-5000",
     priceFcfa: 5000,
-    perActivationLabel: "91 FCFA/activation",
-    discountTag: "-10%",
+    featured: true,
+    perks: ["Crédit instantané", "Sans expiration", "Support 24/7"],
   },
   {
-    id: "pack-175",
-    activations: 175,
-    priceFcfa: 15000,
-    perActivationLabel: "86 FCFA/activation",
-    discountTag: "-17%",
-    featured: true,
-    perks: ["Livraison instantanée", "Sans expiration", "Support 24/7"],
+    id: "recharge-10000",
+    priceFcfa: 10000,
   },
 ];
 
-export function getPackById(id: string): Pack | undefined {
-  return PACKS.find((pack) => pack.id === id);
+export function getRechargeAmountById(id: string): RechargeAmount | undefined {
+  return RECHARGE_AMOUNTS.find((amount) => amount.id === id);
 }
 
 export function formatFcfa(value: number): string {

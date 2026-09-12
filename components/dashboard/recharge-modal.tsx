@@ -3,7 +3,7 @@
 import { Loader2, X, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { formatFcfa, PACKS } from "@/lib/packs";
+import { formatFcfa, RECHARGE_AMOUNTS } from "@/lib/packs";
 
 interface RechargeModalProps {
   open: boolean;
@@ -11,7 +11,7 @@ interface RechargeModalProps {
 }
 
 export function RechargeModal({ open, onClose }: RechargeModalProps) {
-  const [selectedPackId, setSelectedPackId] = useState<string>(PACKS[0]?.id ?? "");
+  const [selectedAmountId, setSelectedAmountId] = useState<string>(RECHARGE_AMOUNTS[0]?.id ?? "");
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +28,7 @@ export function RechargeModal({ open, onClose }: RechargeModalProps) {
 
   if (!open) return null;
 
-  const selectedPack = PACKS.find((pack) => pack.id === selectedPackId);
+  const selectedAmount = RECHARGE_AMOUNTS.find((amount) => amount.id === selectedAmountId);
 
   // Initiates a real checkout session server-side (see
   // app/api/payments/checkout/route.ts) and redirects the browser to the
@@ -36,7 +36,7 @@ export function RechargeModal({ open, onClose }: RechargeModalProps) {
   // app/api/webhooks/payment/route.ts once the gateway confirms payment —
   // never here, and never based on anything the client reports.
   async function handleRecharge() {
-    if (!selectedPack) return;
+    if (!selectedAmount) return;
 
     setIsRedirecting(true);
     setError(null);
@@ -45,7 +45,7 @@ export function RechargeModal({ open, onClose }: RechargeModalProps) {
       const response = await fetch("/api/payments/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packId: selectedPack.id }),
+        body: JSON.stringify({ amountId: selectedAmount.id }),
       });
 
       const data = await response.json();
@@ -88,7 +88,7 @@ export function RechargeModal({ open, onClose }: RechargeModalProps) {
             </span>
             <div>
               <h2 className="text-lg font-bold text-white">Recharger mon solde</h2>
-              <p className="text-sm text-slate-400">Choisissez un pack d&apos;activations</p>
+              <p className="text-sm text-slate-400">Choisissez un montant</p>
             </div>
           </div>
           <button
@@ -101,30 +101,43 @@ export function RechargeModal({ open, onClose }: RechargeModalProps) {
           </button>
         </div>
 
+        {/* Crédit pur, jamais un volume d'activations promis : le catalogue
+            (voir scripts/sync-catalog.ts) tarife chaque pays/service
+            indépendamment et évolue avec les coûts fournisseur, donc aucun
+            ratio FCFA-par-activation fixe ne tiendrait dans la durée. C'est
+            aussi le modèle observé chez tous les concurrents comparables
+            (5sim, SMS-Activate, OnlineSim, NumVirtuel, VirtuNum). */}
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {PACKS.map((pack) => {
-            const isSelected = pack.id === selectedPackId;
+          {RECHARGE_AMOUNTS.map((amount) => {
+            const isSelected = amount.id === selectedAmountId;
 
             return (
               <button
-                key={pack.id}
+                key={amount.id}
                 type="button"
-                onClick={() => setSelectedPackId(pack.id)}
+                onClick={() => setSelectedAmountId(amount.id)}
                 className={`relative rounded-xl border p-4 text-left transition ${
                   isSelected
                     ? "border-blue-500 bg-blue-500/10 ring-1 ring-blue-500"
                     : "border-slate-800 bg-slate-950 hover:border-slate-700"
                 }`}
               >
-                {pack.discountTag && (
+                {amount.discountTag && (
                   <span className="absolute right-3 top-3 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
-                    {pack.discountTag}
+                    {amount.discountTag}
                   </span>
                 )}
-                <p className="text-xl font-extrabold text-white">{pack.activations}</p>
-                <p className="text-xs text-slate-400">activations</p>
-                <p className="mt-2 text-base font-bold text-white">{formatFcfa(pack.priceFcfa)}</p>
-                <p className="text-xs text-slate-500">{pack.perActivationLabel}</p>
+                <p className="text-xl font-extrabold text-white">{formatFcfa(amount.priceFcfa)}</p>
+                <p className="text-xs text-slate-400">de crédit</p>
+                {amount.perks && (
+                  <ul className="mt-2 space-y-0.5">
+                    {amount.perks.map((perk) => (
+                      <li key={perk} className="text-xs text-slate-500">
+                        {perk}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </button>
             );
           })}
@@ -139,15 +152,15 @@ export function RechargeModal({ open, onClose }: RechargeModalProps) {
         <button
           type="button"
           onClick={handleRecharge}
-          disabled={!selectedPack || isRedirecting}
+          disabled={!selectedAmount || isRedirecting}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-[0_0_15px_rgba(37,99,235,0.4)] transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isRedirecting && <Loader2 className="h-4 w-4 animate-spin" />}
           {isRedirecting
             ? "Redirection vers le paiement..."
-            : selectedPack
-              ? `Procéder au paiement — ${formatFcfa(selectedPack.priceFcfa)}`
-              : "Sélectionnez un pack"}
+            : selectedAmount
+              ? `Procéder au paiement — ${formatFcfa(selectedAmount.priceFcfa)}`
+              : "Sélectionnez un montant"}
         </button>
 
         <p className="mt-3 text-center text-xs text-slate-500">
