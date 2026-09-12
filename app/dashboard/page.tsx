@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { prisma } from "@/lib/prisma";
-import { getSmsProvider } from "@/lib/providers";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -33,20 +32,11 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  // Le bouton "Simuler réception SMS" reste un outil de développement : il est
-  // masqué en production pour que l'interface paraisse réelle. Sans risque pour
-  // la démo — MockProvider délivre de toute façon le code tout seul au bout de
-  // 3 à 8 s (voir lib/providers/MockProvider.ts) et le dashboard interroge
-  // l'API toutes les 3 s.
-  const showSmsSimulator =
-    getSmsProvider().name === "mock" && process.env.NODE_ENV !== "production";
-
   return (
     <DashboardShell
       userName={user.name}
       userEmail={user.email}
       initialBalance={user.balance.toString()}
-      isMockSmsProvider={showSmsSimulator}
       countries={countries.map((country) => ({
         id: country.id,
         code: country.code,

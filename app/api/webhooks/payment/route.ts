@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   const rawBody = await request.text();
 
   // Provider-agnostic from here: whichever gateway's signature scheme and
-  // payload shape apply is entirely MockPaymentProvider's (or a future
+  // payload shape apply is entirely the active provider's (SasPay today,
   // real provider's) concern — this route only cares about the verified
   // event it hands back.
   const verification = await getPaymentProvider().verifyWebhook(rawBody, request.headers);

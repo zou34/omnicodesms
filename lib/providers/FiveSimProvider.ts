@@ -19,12 +19,15 @@ import {
 // of this chantier.
 const BASE_URL = "https://5sim.net/v1";
 
-// 5sim countries are keyed by English name, not ISO code — this maps our 8
-// seeded Country.code values to 5sim's slugs, confirmed via GET
-// /guest/countries (each entry has an `iso` map keyed by lowercase ISO
-// code, e.g. {"usa": {..., iso: {"us": 1}}}). Extend this if new countries
-// are added to prisma/seed.ts.
-const COUNTRY_SLUGS: Record<string, string> = {
+// 5sim identifie ses pays par un slug anglais, pas par code ISO. La table
+// ci-dessous n'est qu'un filet de sécurité hors ligne : la correspondance
+// réelle est construite au premier appel depuis GET /guest/countries (153
+// pays, chacun exposant une map `iso` en minuscules, ex. {"usa": {iso:
+// {"us": 1}}}), puis mise en cache pour la durée du process.
+//
+// Cette résolution dynamique évite qu'un pays présent au catalogue soit
+// refusé à l'achat simplement parce qu'il manquait dans une table figée.
+const FALLBACK_COUNTRY_SLUGS: Record<string, string> = {
   US: "usa",
   GB: "england",
   FR: "france",
@@ -34,6 +37,49 @@ const COUNTRY_SLUGS: Record<string, string> = {
   ID: "indonesia",
   BR: "brazil",
 };
+
+interface FiveSimCountry {
+  iso?: Record<string, number>;
+}
+
+let countrySlugCache: Record<string, string> | null = null;
+
+/**
+ * Construit (et met en cache) la correspondance code ISO -> slug 5sim à
+ * partir du catalogue public de 5sim. L'endpoint est "guest" : il ne
+ * consomme aucun crédit et ne demande aucune authentification.
+ *
+ * En cas d'échec réseau, on retombe sur FALLBACK_COUNTRY_SLUGS plutôt que
+ * de faire échouer tous les achats.
+ */
+export async function getFiveSimCountrySlugs(): Promise<Record<string, string>> {
+  if (countrySlugCache) return countrySlugCache;
+
+  try {
+    const response = await fetch(`${BASE_URL}/guest/countries`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const data = (await response.json()) as Record<string, FiveSimCountry>;
+    const map: Record<string, string> = { ...FALLBACK_COUNTRY_SLUGS };
+
+    for (const [slug, entry] of Object.entries(data)) {
+      for (const iso of Object.keys(entry.iso ?? {})) {
+        map[iso.toUpperCase()] = slug;
+      }
+    }
+
+    countrySlugCache = map;
+    return map;
+  } catch (error) {
+    console.error("[FiveSimProvider] catalogue pays indisponible, repli sur la table statique", error);
+    return FALLBACK_COUNTRY_SLUGS;
+  }
+}
 
 // 5sim's product slugs are identical to our own Service.slug values
 // (confirmed via GET /guest/products/usa/any: whatsapp, telegram, facebook,
@@ -119,7 +165,7 @@ export class FiveSimProvider extends SmsProvider {
   }
 
   async getPrices(country: string, service: string): Promise<ProviderPrice> {
-    const slug = COUNTRY_SLUGS[country];
+    const slug = (await getFiveSimCountrySlugs())[country];
     if (!slug) {
       throw new ProviderError(`Pays non supporté par 5sim: ${country}.`, "UNSUPPORTED_COUNTRY_SERVICE");
     }
@@ -142,7 +188,7 @@ export class FiveSimProvider extends SmsProvider {
   }
 
   async rentNumber(country: string, service: string): Promise<RentedNumber> {
-    const slug = COUNTRY_SLUGS[country];
+    const slug = (await getFiveSimCountrySlugs())[country];
     if (!slug) {
       throw new ProviderError(`Pays non supporté par 5sim: ${country}.`, "UNSUPPORTED_COUNTRY_SERVICE");
     }

@@ -1,21 +1,19 @@
-import { MockPaymentProvider } from "@/lib/payments/MockPaymentProvider";
 import type { PaymentProvider } from "@/lib/payments/PaymentProvider";
 import { SasPayProvider } from "@/lib/payments/SasPayProvider";
 
 export { PaymentProvider } from "@/lib/payments/PaymentProvider";
 export * from "@/lib/payments/types";
 
+// SasPay est le seul moyen de créditer un solde. Il n'existe volontairement
+// aucun fournisseur simulé ici : tout encaissement passe par une session de
+// checkout réelle, confirmée par un webhook SasPay dont la signature est
+// vérifiée (app/api/webhooks/payment/route.ts).
+//
+// Rien d'autre ne change en ajoutant un fournisseur ici :
+// app/api/payments/checkout/route.ts et app/api/webhooks/payment/route.ts
+// n'appellent jamais que les méthodes du contrat PaymentProvider.
 const PAYMENT_PROVIDERS = {
-  mock: () => new MockPaymentProvider(),
-  // SasPay : enregistré, mais ses deux méthodes lèvent encore une erreur
-  // explicite tant que la documentation n'est pas intégrée. Ne basculez
-  // PAYMENT_PROVIDER sur "saspay" qu'une fois SasPayProvider implémenté —
-  // d'ici là, toute tentative de paiement échouera en 500 (la transaction
-  // étant correctement repassée en FAILED par la route checkout).
   saspay: () => new SasPayProvider(),
-  // Rien d'autre ne change en ajoutant un fournisseur ici :
-  // app/api/payments/checkout/route.ts et app/api/webhooks/payment/route.ts
-  // n'appellent jamais que les méthodes du contrat PaymentProvider.
 } satisfies Record<string, () => PaymentProvider>;
 
 export type PaymentProviderName = keyof typeof PAYMENT_PROVIDERS;
@@ -28,16 +26,18 @@ const globalForPaymentProvider = globalThis as unknown as {
  * Returns a singleton PaymentProvider, cached on `globalThis` the same way
  * lib/prisma.ts and lib/providers/index.ts do.
  *
- * Selection: `PAYMENT_PROVIDER` env var if set, else "mock" — there's no
- * key-based auto-detection yet since no real aggregator is configured.
- * Once one is (e.g. `PAYMENT_PROVIDER=cinetpay`), it becomes the default.
+ * Sélection : la variable `PAYMENT_PROVIDER` si elle est définie, sinon
+ * "saspay". Le défaut est un vrai fournisseur, jamais une simulation : une
+ * variable oubliée ne doit pas pouvoir faire retomber l'application sur un
+ * mode où l'argent serait fictif.
  */
 export function getPaymentProvider(): PaymentProvider {
   if (globalForPaymentProvider.paymentProvider) {
     return globalForPaymentProvider.paymentProvider;
   }
 
-  const providerName = (process.env.PAYMENT_PROVIDER as PaymentProviderName | undefined) ?? "mock";
+  const providerName =
+    (process.env.PAYMENT_PROVIDER as PaymentProviderName | undefined) || "saspay";
   const factory = PAYMENT_PROVIDERS[providerName];
 
   if (!factory) {

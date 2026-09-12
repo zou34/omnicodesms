@@ -6,7 +6,7 @@ import type {
 
 /**
  * Contract every payment gateway integration must implement (CinetPay,
- * Paystack, the internal MockPaymentProvider, ...). An abstract class
+ * Paystack, SasPay, ...). An abstract class
  * rather than a plain interface for the same reason as SmsProvider — a
  * single place to hang shared config and let the factory do `instanceof`
  * checks if it ever needs to.

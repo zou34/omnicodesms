@@ -47,6 +47,28 @@ const checkoutSessionSchema = z.object({
   checkout_url: z.string().min(1),
 });
 
+/**
+ * Déballe l'enveloppe standard de l'API SasPay.
+ *
+ * Toutes les réponses ont la forme `{ success, data, code }` (voir
+ * https://docs.saspay.me/api-reference/introduction#format-des-réponses) —
+ * y compris celles dont les exemples de la documentation montrent un objet
+ * nu, comme la création de session de checkout. On tolère les deux formes :
+ * si l'enveloppe est absente, la charge utile est déjà l'objet attendu.
+ */
+function unwrapEnvelope(payload: unknown): unknown {
+  if (
+    payload !== null &&
+    typeof payload === "object" &&
+    "success" in payload &&
+    "data" in payload
+  ) {
+    return (payload as { data: unknown }).data;
+  }
+
+  return payload;
+}
+
 const webhookEnvelopeSchema = z.object({
   event: z.string().min(1),
   data: z.object({
@@ -124,7 +146,7 @@ function deriveCustomerName(email: string): string {
  * paiement, on redirige le navigateur vers `checkout_url`, et SasPay nous
  * notifie du résultat par webhook signé.
  *
- * Comme MockPaymentProvider, cette classe est le seul endroit du projet qui
+ * Cette classe est le seul endroit du projet qui
  * connaît la forme de l'API SasPay — app/api/payments/checkout/route.ts et
  * app/api/webhooks/payment/route.ts ne parlent qu'au contrat PaymentProvider.
  */
@@ -169,12 +191,17 @@ export class SasPayProvider extends PaymentProvider {
       metadata: { reference: params.reference },
     };
 
+    // Lu hors du try : une clé absente est une erreur de configuration, pas
+    // une panne réseau — la confondre avec "SasPay est injoignable" enverrait
+    // sur une fausse piste au moment du diagnostic.
+    const secretKey = this.secretKey;
+
     let response: Response;
     try {
       response = await fetch(`${API_BASE_URL}/checkout-sessions/`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.secretKey}`,
+          Authorization: `Bearer ${secretKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
@@ -204,7 +231,7 @@ export class SasPayProvider extends PaymentProvider {
       );
     }
 
-    const parsed = checkoutSessionSchema.safeParse(payload);
+    const parsed = checkoutSessionSchema.safeParse(unwrapEnvelope(payload));
     if (!parsed.success) {
       console.error("[SasPayProvider] réponse de création inattendue", JSON.stringify(payload));
       throw new PaymentProviderError(
@@ -319,7 +346,9 @@ export class SasPayProvider extends PaymentProvider {
         return null;
       }
 
-      const parsed = sessionListSchema.safeParse(await response.json().catch(() => null));
+      const parsed = sessionListSchema.safeParse(
+        unwrapEnvelope(await response.json().catch(() => null))
+      );
       if (!parsed.success) {
         console.error("[SasPayProvider] réponse de listage des sessions inattendue");
         return null;

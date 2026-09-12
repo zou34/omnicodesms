@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     });
 
     // Provider-agnostic from here: whichever PaymentProvider is active
-    // (MockPaymentProvider today, a real aggregator once one is chosen —
+    // (SasPayProvider today — see lib/payments/index.ts) is the only thing
     // see lib/payments/index.ts) is the only thing that knows how to talk
     // to a specific gateway's API. This route only ever deals with our own
     // ledger and the shared PaymentProvider contract.
@@ -99,7 +99,13 @@ export async function POST(request: Request) {
       });
 
       if (error instanceof PaymentProviderError) {
-        return NextResponse.json({ error: error.message }, { status: 502 });
+        // Le message d'origine peut nommer une variable d'environnement
+        // manquante : il reste dans les logs, jamais dans la réponse HTTP.
+        console.error(`[POST /api/payments/checkout] ${error.code}: ${error.message}`);
+        return NextResponse.json(
+          { error: "Le paiement est momentanément indisponible. Réessayez dans quelques instants." },
+          { status: 502 }
+        );
       }
       throw error;
     }

@@ -15,7 +15,7 @@ const SMS_STATUS_TO_ORDER_STATUS: Record<SmsStatus, OrderStatus> = {
 };
 
 // Polled by the dashboard while an order is PENDING, to reflect the SMS
-// arriving on the provider's side (simulated by MockProvider) into our DB.
+// arriving on the provider's side into our DB.
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);

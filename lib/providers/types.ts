@@ -1,4 +1,4 @@
-// Shared vocabulary for every SMS provider integration (mock or real).
+// Shared vocabulary for every SMS provider integration.
 // Deliberately decoupled from the Prisma models: a provider's own status
 // vocabulary and identifiers don't have to match our internal `Order` model
 // 1:1 — the code that consumes `SmsProvider` is responsible for mapping

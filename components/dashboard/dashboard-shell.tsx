@@ -13,7 +13,6 @@ interface DashboardShellProps {
   userName: string | null;
   userEmail: string | null;
   initialBalance: string;
-  isMockSmsProvider: boolean;
   countries: CountryVM[];
   services: ServiceVM[];
   pricing: PricingVM[];
@@ -24,7 +23,6 @@ export function DashboardShell({
   userName,
   userEmail,
   initialBalance,
-  isMockSmsProvider,
   countries,
   services,
   pricing,
@@ -75,11 +73,7 @@ export function DashboardShell({
           onOrderCreated={handleOrderCreated}
           onInsufficientBalance={() => setIsRechargeOpen(true)}
         />
-        <ActiveOrders
-          orders={orders}
-          onOrderUpdated={handleOrderUpdated}
-          isMockSmsProvider={isMockSmsProvider}
-        />
+        <ActiveOrders orders={orders} onOrderUpdated={handleOrderUpdated} />
       </main>
 
       {/* Rendered here rather than inside DashboardHeader: that component's

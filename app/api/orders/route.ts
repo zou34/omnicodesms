@@ -14,6 +14,22 @@ import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 const ORDER_LIMIT = 10;
 const ORDER_WINDOW_MS = 60 * 1000;
 
+// Messages destinés au client, dérivés du seul code d'erreur. Les libellés
+// levés par les providers nomment l'opérateur en amont ("Pays non supporté
+// par 5sim", "Commande GrizzlySMS introuvable") : les renvoyer tels quels
+// révélerait notre chaîne d'approvisionnement à nos propres clients.
+//
+// Traduire depuis le code plutôt que d'assainir chaque message à la source
+// rend la protection étanche : un nouveau message, ou un nouveau provider,
+// ne peut pas fuiter par oubli.
+const CLIENT_PROVIDER_ERRORS: Record<ProviderError["code"], string> = {
+  INSUFFICIENT_BALANCE: "Ce numéro est momentanément indisponible. Réessayez dans quelques minutes.",
+  NO_NUMBERS_AVAILABLE: "Plus aucun numéro disponible pour ce pays et ce service actuellement.",
+  ORDER_NOT_FOUND: "Cette commande est introuvable.",
+  UNSUPPORTED_COUNTRY_SERVICE: "Cette combinaison pays / service n'est pas disponible.",
+  PROVIDER_UNAVAILABLE: "Service temporairement indisponible. Réessayez dans quelques instants.",
+};
+
 const createOrderSchema = z.object({
   country: z
     .string()
@@ -114,8 +130,19 @@ export async function POST(request: Request) {
       rental = await provider.rentNumber(countryRecord.code, serviceRecord.slug);
     } catch (error) {
       if (error instanceof ProviderError) {
+        // Le message brut du fournisseur ne sort JAMAIS d'ici : il nomme
+        // l'opérateur en amont (5sim, GrizzlySMS) et expose notre chaîne
+        // d'approvisionnement au client. Il reste dans les logs serveur,
+        // où il est utile au diagnostic ; le client ne voit qu'un message
+        // neutre dérivé du code d'erreur.
+        console.error(
+          `[POST /api/orders] ${error.code} pour ${serviceRecord.slug}/${countryRecord.code}: ${error.message}`
+        );
         const status = error.code === "NO_NUMBERS_AVAILABLE" ? 409 : 502;
-        return NextResponse.json({ error: error.message, code: error.code }, { status });
+        return NextResponse.json(
+          { error: CLIENT_PROVIDER_ERRORS[error.code], code: error.code },
+          { status }
+        );
       }
       throw error;
     }

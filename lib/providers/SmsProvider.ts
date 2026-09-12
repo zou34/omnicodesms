@@ -8,7 +8,7 @@ import type {
 
 /**
  * Contract every SMS/virtual-number provider integration must implement
- * (5sim, SMSHub, the internal MockProvider, ...). Keeping this as an
+ * (5sim, GrizzlySMS, ...). Keeping this as an
  * abstract class — rather than a plain interface — lets the Factory do
  * `instanceof SmsProvider` checks and gives concrete providers a single
  * place to hang shared config (e.g. `name`) via the constructor.

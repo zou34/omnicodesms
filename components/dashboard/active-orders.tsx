@@ -1,7 +1,7 @@
 "use client";
 
 import type { OrderStatus } from "@prisma/client";
-import { CheckCircle2, Clock, Copy, Loader2, XCircle, Zap } from "lucide-react";
+import { CheckCircle2, Clock, Copy, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { OrderVM } from "@/components/dashboard/types";
@@ -9,12 +9,11 @@ import type { OrderVM } from "@/components/dashboard/types";
 interface ActiveOrdersProps {
   orders: OrderVM[];
   onOrderUpdated: (order: Partial<OrderVM> & { id: string }) => void;
-  isMockSmsProvider: boolean;
 }
 
 const POLL_INTERVAL_MS = 3000;
 
-export function ActiveOrders({ orders, onOrderUpdated, isMockSmsProvider }: ActiveOrdersProps) {
+export function ActiveOrders({ orders, onOrderUpdated }: ActiveOrdersProps) {
   // Read the latest orders inside the interval without re-creating it on
   // every render (a purchase or a status update shouldn't reset the timer).
   const ordersRef = useRef(orders);
@@ -64,43 +63,15 @@ export function ActiveOrders({ orders, onOrderUpdated, isMockSmsProvider }: Acti
 
       <div className="mt-4 space-y-3">
         {orders.map((order) => (
-          <OrderCard
-            key={order.id}
-            order={order}
-            isMockSmsProvider={isMockSmsProvider}
-            onOrderUpdated={onOrderUpdated}
-          />
+          <OrderCard key={order.id} order={order} />
         ))}
       </div>
     </section>
   );
 }
 
-function OrderCard({
-  order,
-  isMockSmsProvider,
-  onOrderUpdated,
-}: {
-  order: OrderVM;
-  isMockSmsProvider: boolean;
-  onOrderUpdated: (order: Partial<OrderVM> & { id: string }) => void;
-}) {
+function OrderCard({ order }: { order: OrderVM }) {
   const [copied, setCopied] = useState<"phone" | "code" | null>(null);
-  const [isSimulating, setIsSimulating] = useState(false);
-
-  async function simulateSms() {
-    setIsSimulating(true);
-    try {
-      const response = await fetch(`/api/orders/${order.id}/simulate-sms`, { method: "POST" });
-      if (!response.ok) return;
-      const data = await response.json();
-      onOrderUpdated({ id: order.id, status: data.status, smsCode: data.smsCode, fullSms: data.fullSms });
-    } catch {
-      // Transient network error — the button stays visible to retry.
-    } finally {
-      setIsSimulating(false);
-    }
-  }
 
   function copyToClipboard(value: string, kind: "phone" | "code") {
     navigator.clipboard.writeText(value);
@@ -133,31 +104,10 @@ function OrderCard({
 
       <div className="mt-3 border-t border-slate-800 pt-3">
         {order.status === "PENDING" && (
-          // `flex-wrap` + `whitespace-nowrap` : sur un écran de téléphone le
-          // bouton "Simuler réception SMS" (shrink-0) écrasait le libellé, qui
-          // se cassait alors sur quatre lignes. Il passe désormais à la ligne
-          // suivante au lieu de comprimer le texte.
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-            <span className="flex items-center gap-2 whitespace-nowrap text-sm text-amber-400">
-              <Clock className="h-4 w-4 shrink-0 animate-pulse" />
-              En attente du SMS...
-            </span>
-            {isMockSmsProvider && (
-              <button
-                type="button"
-                onClick={simulateSms}
-                disabled={isSimulating}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-400 transition hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSimulating ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Zap className="h-3.5 w-3.5" />
-                )}
-                Simuler réception SMS
-              </button>
-            )}
-          </div>
+          <span className="flex items-center gap-2 whitespace-nowrap text-sm text-amber-400">
+            <Clock className="h-4 w-4 shrink-0 animate-pulse" />
+            En attente du SMS...
+          </span>
         )}
 
         {order.status === "COMPLETED" && order.smsCode && (

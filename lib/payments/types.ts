@@ -1,4 +1,4 @@
-// Shared vocabulary for every payment gateway integration (mock or real).
+// Shared vocabulary for every payment gateway integration.
 // Kept decoupled from Prisma's Transaction model the same way
 // lib/providers/types.ts decouples SMS providers from Order — the route
 // layer is what maps between the two.

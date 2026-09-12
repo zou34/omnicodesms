@@ -5,8 +5,7 @@ import { NextResponse } from "next/server";
 // provisioned yet. If this ever runs across multiple serverless
 // instances/regions, each instance keeps its own counters and the
 // effective limit multiplies accordingly — swap this for a shared store
-// (e.g. Upstash Ratelimit) before scaling horizontally. Same caveat as
-// MockProvider's in-memory state (lib/providers/MockProvider.ts).
+// (e.g. Upstash Ratelimit) before scaling horizontally.
 interface Bucket {
   count: number;
   resetAt: number;
