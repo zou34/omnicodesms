@@ -8,6 +8,7 @@ import { PaymentStatusBanner } from "@/components/dashboard/payment-status-banne
 import { PurchasePanel } from "@/components/dashboard/purchase-panel";
 import { RechargeModal } from "@/components/dashboard/recharge-modal";
 import type { CountryVM, OrderVM, PricingVM, ServiceVM } from "@/components/dashboard/types";
+import { WelcomeModal } from "@/components/dashboard/welcome-modal";
 
 interface DashboardShellProps {
   userName: string | null;
@@ -80,6 +81,10 @@ export function DashboardShell({
           <header> has backdrop-blur, which would confine the modal's
           `inset-0` to the header's own box instead of the full viewport. */}
       <RechargeModal open={isRechargeOpen} onClose={() => setIsRechargeOpen(false)} />
+
+      <Suspense fallback={null}>
+        <WelcomeModal onRecharge={() => setIsRechargeOpen(true)} />
+      </Suspense>
     </div>
   );
 }

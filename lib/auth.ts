@@ -23,6 +23,11 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: "/login",
+    // First Google sign-in (account just created by the adapter) lands on the
+    // dashboard's welcome modal; NextAuth appends &callbackUrl= itself.
+    // Email/password sign-up doesn't go through here — see
+    // app/register/register-form.tsx, which redirects to the same URL.
+    newUser: "/dashboard?welcome=1",
   },
   providers: [
     GoogleProvider({

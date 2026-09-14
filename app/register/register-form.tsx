@@ -52,7 +52,7 @@ export function RegisterForm() {
         return;
       }
 
-      router.push("/dashboard");
+      router.push("/dashboard?welcome=1");
       router.refresh();
     } catch {
       setError("Une erreur est survenue. Réessayez.");

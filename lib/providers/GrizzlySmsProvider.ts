@@ -43,6 +43,9 @@ const SERVICE_CODES: Record<string, string> = {
   tiktok: "lf",
   twitter: "tw",
   discord: "ds",
+  // No separate YouTube code: a YouTube account is a Google account, verified
+  // with the same "go" code (same stock, same price).
+  youtube: "go",
 };
 
 const ACTIVATION_TTL_MS = 20 * 60 * 1000;

@@ -81,10 +81,20 @@ export async function getFiveSimCountrySlugs(): Promise<Record<string, string>> 
   }
 }
 
-// 5sim's product slugs are identical to our own Service.slug values
-// (confirmed via GET /guest/products/usa/any: whatsapp, telegram, facebook,
-// google, instagram, tiktok, twitter, discord all matched as-is) — no
-// mapping table needed.
+// 5sim's product slugs match our own Service.slug values as-is (confirmed via
+// GET /guest/products/usa/any: whatsapp, telegram, facebook, google,
+// instagram, tiktok, twitter, discord) — except for services 5sim doesn't sell
+// as a separate product. There is no "youtube" product: a YouTube account is
+// a Google account, so it's verified with the "google" product (same number
+// pool, same price).
+const PRODUCT_ALIASES: Record<string, string> = {
+  youtube: "google",
+};
+
+/** Maps one of our Service.slug values to the 5sim product that sells it. */
+export function toFiveSimProduct(service: string): string {
+  return PRODUCT_ALIASES[service] ?? service;
+}
 
 interface FiveSimOrder {
   id: number;
@@ -176,7 +186,7 @@ export class FiveSimProvider extends SmsProvider {
       `/guest/products/${slug}/any`
     );
 
-    const entry = data[service];
+    const entry = data[toFiveSimProduct(service)];
     if (!entry) {
       throw new ProviderError(
         `Aucune offre 5sim pour ${service}/${country}.`,
@@ -193,7 +203,9 @@ export class FiveSimProvider extends SmsProvider {
       throw new ProviderError(`Pays non supporté par 5sim: ${country}.`, "UNSUPPORTED_COUNTRY_SERVICE");
     }
 
-    const order = await this.request<FiveSimOrder>(`/user/buy/activation/${slug}/any/${service}`);
+    const order = await this.request<FiveSimOrder>(
+      `/user/buy/activation/${slug}/any/${toFiveSimProduct(service)}`
+    );
 
     return {
       providerOrderId: String(order.id),

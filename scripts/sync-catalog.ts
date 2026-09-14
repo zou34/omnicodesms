@@ -9,37 +9,46 @@
  *
  * Ce script interroge l'endpoint public de 5sim (aucune authentification,
  * aucun crédit consommé), puis :
+ *   - crée les couples pays/service manquants (ex. après l'ajout d'un nouveau
+ *     service), uniquement quand la tarification est configurée ;
  *   - désactive tout couple pays/service que le fournisseur ne propose pas
  *     ou dont le stock est nul ;
  *   - (ré)active et retarife ceux qui sont réellement disponibles ;
  *   - désactive les pays dont plus aucun service n'est vendable.
  *
  * Usage :
- *   npm run sync-catalog              # simulation, n'écrit rien
- *   npm run sync-catalog -- --apply   # applique les changements
+ *   npm run sync-catalog                                # simulation, n'écrit rien
+ *   npm run sync-catalog -- --apply                     # applique les changements
+ *   npm run sync-catalog -- --apply --service=youtube   # un seul service
+ *
+ * --service limite la synchronisation à un service (ex. juste après en avoir
+ * ajouté un) : le reste du catalogue n'est ni retarifé ni modifié, et l'état
+ * actif/inactif des pays n'est pas touché.
  *
  * Variables requises pour le calcul des prix :
  *   SMS_UNIT_TO_FCFA   Valeur en FCFA d'UNE unité de prix fournisseur.
  *   SMS_PRICE_MARKUP   Multiplicateur de marge (ex. 2.5 = +150 %).
  *
  * Sans ces deux variables, le script tourne quand même mais se limite aux
- * activations/désactivations : il ne touche à aucun prix. C'est volontaire —
- * fixer un prix de vente sur un coût mal converti ferait vendre à perte.
+ * activations/désactivations : il ne touche à aucun prix, ne crée aucun
+ * couple, et n'active jamais un couple qui n'a jamais été tarifé. C'est
+ * volontaire — un prix mal converti ou nul ferait vendre à perte.
  *
  * Le script est idempotent : on peut le relancer sans risque après un échec
  * réseau, il reconverge vers le même état.
  */
 import "dotenv/config";
 
-import { getFiveSimCountrySlugs } from "@/lib/providers/FiveSimProvider";
+import { getFiveSimCountrySlugs, toFiveSimProduct } from "@/lib/providers/FiveSimProvider";
 import { prisma } from "@/lib/prisma";
 
 const BASE_URL = "https://5sim.net/v1";
 const APPLY = process.argv.includes("--apply");
+const SERVICE_FILTER =
+  process.argv.find((arg) => arg.startsWith("--service="))?.slice("--service=".length) || null;
 
-// Les écritures sont groupées : le pooler Supabase (pgbouncer, mode
-// transaction) ferme la connexion si on lui enchaîne ~900 requêtes unitaires
-// — c'est ce qui a fait échouer la première version de ce script (P1017).
+// Écritures groupées : quelques requêtes vers la base (Francfort) au lieu
+// d'une par couple pays/service.
 const CHUNK_SIZE = 200;
 
 const unitToFcfa = Number(process.env.SMS_UNIT_TO_FCFA);
@@ -91,6 +100,37 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
+function loadPairs(serviceIds: string[]) {
+  return prisma.countryService.findMany({
+    where: { serviceId: { in: serviceIds } },
+    select: { id: true, countryId: true, serviceId: true, price: true },
+  });
+}
+
+// La phase 1 enchaîne des dizaines d'appels à 5sim pendant plusieurs minutes,
+// sans aucune requête à la base : le pooler Supabase ferme alors la connexion
+// restée inactive, et la première écriture qui suit échoue en P1017 ("Server
+// has closed the connection"). Même traitement quand le serveur devient
+// momentanément injoignable (P1001), ce qui arrive sur les réseaux dont le
+// chemin IPv6 vers Supabase est instable. Chaque écriture est donc retentée
+// sur une connexion neuve si celle-ci est tombée.
+function isConnectionLost(error: unknown): boolean {
+  const { code, name } = error as { code?: string; name?: string };
+  return code === "P1017" || code === "P1001" || name === "PrismaClientInitializationError";
+}
+
+async function withRetry<T>(operation: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!isConnectionLost(error) || attempt >= 4) throw error;
+      await prisma.$disconnect();
+      await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+    }
+  }
+}
+
 async function main() {
   console.log(APPLY ? "=== SYNCHRONISATION (écriture) ===" : "=== SIMULATION (aucune écriture) ===");
   console.log(
@@ -101,13 +141,59 @@ async function main() {
   );
 
   const slugs = await getFiveSimCountrySlugs();
-  const [countries, services, pairs] = await Promise.all([
+  const [countries, allServices] = await Promise.all([
     prisma.country.findMany({ orderBy: { code: "asc" } }),
     prisma.service.findMany({ orderBy: { slug: "asc" } }),
-    prisma.countryService.findMany({ select: { id: true, countryId: true, serviceId: true } }),
   ]);
 
-  const pairId = new Map(pairs.map((p) => [`${p.countryId}:${p.serviceId}`, p.id]));
+  const services = SERVICE_FILTER
+    ? allServices.filter((service) => service.slug === SERVICE_FILTER)
+    : allServices;
+
+  if (SERVICE_FILTER && services.length === 0) {
+    console.error(`Service introuvable en base : "${SERVICE_FILTER}".`);
+    process.exitCode = 1;
+    return;
+  }
+  if (SERVICE_FILTER) {
+    console.log(`Périmètre : service "${SERVICE_FILTER}" uniquement (état des pays inchangé)`);
+  }
+
+  const serviceIds = services.map((service) => service.id);
+  let pairs = await loadPairs(serviceIds);
+
+  // --- Phase 0 : couples pays/service manquants (nouveau service) ---
+  const existing = new Set(pairs.map((p) => `${p.countryId}:${p.serviceId}`));
+  const missing = countries.flatMap((country) =>
+    services
+      .filter((service) => !existing.has(`${country.id}:${service.id}`))
+      .map((service) => ({ countryId: country.id, serviceId: service.id }))
+  );
+
+  let created = 0;
+  if (missing.length > 0 && !canPrice) {
+    console.warn(
+      `\n! ${missing.length} couple(s) pays/service manquant(s) non créé(s) : ` +
+        "la tarification est requise pour ne jamais vendre à 0 FCFA."
+    );
+  } else if (missing.length > 0 && APPLY) {
+    // Créés inactifs à 0 FCFA : la phase 1 ci-dessous les tarifie puis
+    // n'active que ceux que le fournisseur a réellement en stock.
+    for (const batch of chunk(missing, CHUNK_SIZE)) {
+      const result = await withRetry(() =>
+        prisma.countryService.createMany({
+          data: batch.map((pair) => ({ ...pair, price: 0, isActive: false })),
+          skipDuplicates: true,
+        })
+      );
+      created += result.count;
+    }
+    pairs = await loadPairs(serviceIds);
+  }
+
+  const pairByKey = new Map(
+    pairs.map((p) => [`${p.countryId}:${p.serviceId}`, { id: p.id, price: Number(p.price) }])
+  );
 
   // --- Phase 1 : tout décider en mémoire (réseau fournisseur uniquement) ---
   const toActivate: string[] = [];
@@ -118,17 +204,22 @@ async function main() {
   const unmapped: string[] = [];
   const unreadable: string[] = [];
   const preview: string[] = [];
+  let unpriced = 0;
+
+  function deactivateCountry(countryId: string) {
+    countriesOff.push(countryId);
+    for (const service of services) {
+      const pair = pairByKey.get(`${countryId}:${service.id}`);
+      if (pair) toDeactivate.push(pair.id);
+    }
+  }
 
   for (const country of countries) {
     const slug = slugs[country.code];
 
     if (!slug) {
       unmapped.push(country.code);
-      countriesOff.push(country.id);
-      for (const service of services) {
-        const id = pairId.get(`${country.id}:${service.id}`);
-        if (id) toDeactivate.push(id);
-      }
+      deactivateCountry(country.id);
       continue;
     }
 
@@ -142,11 +233,7 @@ async function main() {
     if (result.status === "unsupported") {
       // Refus définitif du fournisseur : rien n'y est achetable.
       unmapped.push(country.code);
-      countriesOff.push(country.id);
-      for (const service of services) {
-        const id = pairId.get(`${country.id}:${service.id}`);
-        if (id) toDeactivate.push(id);
-      }
+      deactivateCountry(country.id);
       continue;
     }
 
@@ -154,31 +241,37 @@ async function main() {
     let sellable = 0;
 
     for (const service of services) {
-      const id = pairId.get(`${country.id}:${service.id}`);
-      if (!id) continue;
+      const pair = pairByKey.get(`${country.id}:${service.id}`);
+      if (!pair) continue;
 
-      const entry = products[service.slug];
+      const entry = products[toFiveSimProduct(service.slug)];
       if (!entry || entry.Qty <= 0) {
-        toDeactivate.push(id);
+        toDeactivate.push(pair.id);
+        continue;
+      }
+
+      if (!canPrice && pair.price <= 0) {
+        // Couple jamais tarifé : l'activer sans tarification le mettrait en
+        // vente à 0 FCFA.
+        unpriced++;
+        toDeactivate.push(pair.id);
         continue;
       }
 
       sellable++;
-      toActivate.push(id);
+      toActivate.push(pair.id);
 
-      if (canPrice) {
-        // Arrondi à la dizaine de FCFA supérieure : jamais en dessous du
-        // coût majoré, et un prix affichable proprement.
-        const price = Math.ceil((entry.Price * unitToFcfa * markup) / 10) * 10;
+      // Arrondi à la dizaine de FCFA supérieure : jamais en dessous du coût
+      // majoré, et un prix affichable proprement.
+      const price = canPrice ? Math.ceil((entry.Price * unitToFcfa * markup) / 10) * 10 : null;
+
+      if (price !== null) {
         const bucket = byPrice.get(price);
-        if (bucket) bucket.push(id);
-        else byPrice.set(price, [id]);
+        if (bucket) bucket.push(pair.id);
+        else byPrice.set(price, [pair.id]);
       }
 
       if (preview.length < 12) {
-        const price = canPrice
-          ? Math.ceil((entry.Price * unitToFcfa * markup) / 10) * 10
-          : null;
         preview.push(
           `  ${country.code}/${service.slug.padEnd(10)} stock ${String(entry.Qty).padStart(9)}` +
             ` | coût ${String(entry.Price).padStart(6)}` +
@@ -195,35 +288,63 @@ async function main() {
     console.log("\nÉcriture en base...");
 
     for (const ids of chunk(toDeactivate, CHUNK_SIZE)) {
-      await prisma.countryService.updateMany({ where: { id: { in: ids } }, data: { isActive: false } });
+      await withRetry(() =>
+        prisma.countryService.updateMany({ where: { id: { in: ids } }, data: { isActive: false } })
+      );
     }
-    for (const ids of chunk(toActivate, CHUNK_SIZE)) {
-      await prisma.countryService.updateMany({ where: { id: { in: ids } }, data: { isActive: true } });
-    }
-    // Un seul UPDATE par prix distinct, et non par couple.
+    // Les prix sont écrits AVANT l'activation : un couple fraîchement créé à
+    // 0 FCFA n'est ainsi jamais actif avec un prix nul, même un instant.
     for (const [price, ids] of Array.from(byPrice.entries())) {
       for (const batch of chunk(ids, CHUNK_SIZE)) {
-        await prisma.countryService.updateMany({ where: { id: { in: batch } }, data: { price } });
+        await withRetry(() =>
+          prisma.countryService.updateMany({ where: { id: { in: batch } }, data: { price } })
+        );
       }
     }
-    for (const ids of chunk(countriesOff, CHUNK_SIZE)) {
-      await prisma.country.updateMany({ where: { id: { in: ids } }, data: { isActive: false } });
+    for (const ids of chunk(toActivate, CHUNK_SIZE)) {
+      await withRetry(() =>
+        prisma.countryService.updateMany({ where: { id: { in: ids } }, data: { isActive: true } })
+      );
     }
-    for (const ids of chunk(countriesOn, CHUNK_SIZE)) {
-      await prisma.country.updateMany({ where: { id: { in: ids } }, data: { isActive: true } });
+
+    // Avec --service, l'état d'un pays ne peut pas être déduit d'un seul
+    // service : il reste tel quel.
+    if (!SERVICE_FILTER) {
+      for (const ids of chunk(countriesOff, CHUNK_SIZE)) {
+        await withRetry(() =>
+          prisma.country.updateMany({ where: { id: { in: ids } }, data: { isActive: false } })
+        );
+      }
+      for (const ids of chunk(countriesOn, CHUNK_SIZE)) {
+        await withRetry(() =>
+          prisma.country.updateMany({ where: { id: { in: ids } }, data: { isActive: true } })
+        );
+      }
     }
 
     console.log("Écriture terminée.");
   }
 
   console.log("\n=== APERÇU ===");
-  console.log(preview.join("\n"));
+  console.log(preview.join("\n") || "  (aucun couple disponible)");
 
   console.log("\n=== BILAN ===");
+  if (missing.length > 0) {
+    console.log(
+      APPLY && canPrice
+        ? `  couples créés      : ${created}`
+        : `  couples à créer    : ${missing.length}${canPrice ? " (relancez avec --apply)" : ""}`
+    );
+  }
   console.log(`  couples activés    : ${toActivate.length}`);
   console.log(`  couples désactivés : ${toDeactivate.length}`);
   console.log(`  couples retarifés  : ${canPrice ? toActivate.length : 0}${canPrice ? ` (${byPrice.size} prix distincts)` : ""}`);
-  console.log(`  pays vendables     : ${countriesOn.length}`);
+  if (unpriced > 0) {
+    console.log(`  couples jamais tarifés laissés inactifs : ${unpriced}`);
+  }
+  if (!SERVICE_FILTER) {
+    console.log(`  pays vendables     : ${countriesOn.length}`);
+  }
   console.log(`  pays inconnus du fournisseur : ${unmapped.length}${unmapped.length ? " -> " + unmapped.join(", ") : ""}`);
   if (unreadable.length) {
     console.log(`  pays ignorés (catalogue illisible) : ${unreadable.join(", ")}`);

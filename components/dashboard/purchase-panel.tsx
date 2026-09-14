@@ -30,12 +30,30 @@ export function PurchasePanel({
   // wallet does nothing to fix, so that case keeps the plain error banner.
   const [isOwnBalanceLow, setIsOwnBalanceLow] = useState(false);
 
+  // Only services actually sellable in the selected country are offered: the
+  // catalog sync (scripts/sync-catalog.ts) deactivates pairs the provider
+  // doesn't stock (e.g. WhatsApp/Telegram in Venezuela), which used to show up
+  // here as a dead "Indisponible" choice.
+  const availableServices = useMemo(() => {
+    const available = new Set(
+      pricing.filter((p) => p.countryId === countryId).map((p) => p.serviceId)
+    );
+    return services.filter((s) => available.has(s.id));
+  }, [pricing, services, countryId]);
+
+  // Keeps the user's choice while it stays available in the new country;
+  // otherwise falls back to the first service sold there.
+  const effectiveServiceId = availableServices.some((s) => s.id === serviceId)
+    ? serviceId
+    : (availableServices[0]?.id ?? "");
+
   const selectedCountry = countries.find((c) => c.id === countryId);
-  const selectedService = services.find((s) => s.id === serviceId);
+  const selectedService = availableServices.find((s) => s.id === effectiveServiceId);
 
   const selectedPricing = useMemo(
-    () => pricing.find((p) => p.countryId === countryId && p.serviceId === serviceId) ?? null,
-    [pricing, countryId, serviceId]
+    () =>
+      pricing.find((p) => p.countryId === countryId && p.serviceId === effectiveServiceId) ?? null,
+    [pricing, countryId, effectiveServiceId]
   );
 
   async function handleBuy() {
@@ -112,11 +130,11 @@ export function PurchasePanel({
           </label>
           <select
             id="service"
-            value={serviceId}
+            value={effectiveServiceId}
             onChange={(e) => setServiceId(e.target.value)}
             className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-500"
           >
-            {services.map((service) => (
+            {availableServices.map((service) => (
               <option key={service.id} value={service.id}>
                 {service.name}
               </option>

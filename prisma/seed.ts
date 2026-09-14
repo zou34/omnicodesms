@@ -135,6 +135,9 @@ const services = [
   { name: "Twitter / X", slug: "twitter" },
   { name: "Discord", slug: "discord" },
   { name: "TikTok", slug: "tiktok" },
+  // Sold through the providers' "google" product — see toFiveSimProduct in
+  // lib/providers/FiveSimProvider.ts.
+  { name: "YouTube", slug: "youtube" },
 ];
 
 // Base price (FCFA) per service; countries apply a small multiplier so
