@@ -74,6 +74,7 @@ const webhookEnvelopeSchema = z.object({
   data: z.object({
     id: z.string().min(1),
     amount: z.string().optional(),
+    currency: z.string().optional(),
     metadata: z.record(z.string(), z.unknown()).nullish(),
   }),
 });
@@ -270,6 +271,22 @@ export class SasPayProvider extends PaymentProvider {
     // settlement.*, wallet_transfer.*, webhook.test) : la route répond 200
     // sans rien modifier, ce qui évite une tempête de retry côté SasPay.
     if (!status) {
+      return { valid: false, reason: "UNRECOGNIZED_PAYLOAD" };
+    }
+
+    // La devise doit être celle dans laquelle la session a été créée. Sans ce
+    // contrôle, un montant libellé dans une devise plus faible passerait le
+    // contrôle de montant de la route (qui ne compare que des nombres) et
+    // créditerait le solde en FCFA pour une somme bien moindre.
+    //
+    // Le contrôle vit ici plutôt que dans la route : XOF est le code que NOUS
+    // envoyons à SasPay, et la route reste ainsi agnostique du fournisseur —
+    // elle stocke la devise sous son nom courant, "FCFA".
+    if (data.currency && data.currency.toUpperCase() !== CURRENCY.toUpperCase()) {
+      console.error(
+        `[SasPayProvider] devise inattendue pour la transaction ${data.id} : ` +
+          `${data.currency} au lieu de ${CURRENCY}`
+      );
       return { valid: false, reason: "UNRECOGNIZED_PAYLOAD" };
     }
 
