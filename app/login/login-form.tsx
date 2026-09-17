@@ -9,14 +9,32 @@ import { Suspense, useState } from "react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { GoogleIcon } from "@/components/auth/google-icon";
 
+// NextAuth renvoie ses échecs OAuth sur cette page via ?error=... Sans ce
+// message, l'utilisateur revient sur /login sans la moindre explication : la
+// connexion Google paraît « boucler » alors qu'elle a simplement été refusée.
+const OAUTH_ERRORS: Record<string, string> = {
+  OAuthAccountNotLinked:
+    "Un compte existe déjà avec cette adresse e-mail. Connectez-vous avec votre mot de passe.",
+  OAuthSignin: "Impossible de joindre Google. Réessayez dans quelques instants.",
+  OAuthCallback: "La connexion avec Google a échoué. Réessayez.",
+  OAuthCreateAccount: "Impossible de créer votre compte avec Google.",
+  AccessDenied: "Connexion refusée.",
+  Configuration: "Configuration d'authentification invalide. Contactez le support.",
+};
+
+const DEFAULT_OAUTH_ERROR = "La connexion a échoué. Réessayez.";
+
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams?.get("callbackUrl") ?? "/dashboard";
+  const oauthError = searchParams?.get("error") ?? null;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    oauthError ? (OAUTH_ERRORS[oauthError] ?? DEFAULT_OAUTH_ERROR) : null
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 

@@ -33,6 +33,18 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      // Sans cette option, un compte déjà inscrit par e-mail/mot de passe qui
+      // clique ensuite sur "Continuer avec Google" est refusé
+      // (OAuthAccountNotLinked) : NextAuth refuse par défaut de rattacher un
+      // compte OAuth à un utilisateur existant.
+      //
+      // "Dangerous" vise les fournisseurs qui ne vérifient pas l'adresse
+      // qu'ils transmettent — ce n'est pas le cas de Google, qui n'émet un
+      // e-mail qu'à son propriétaire prouvé. Le rattachement donne donc le
+      // compte à celui qui possède réellement l'adresse, ce qui est aussi le
+      // bon résultat ici : notre inscription par mot de passe ne vérifie pas
+      // l'e-mail, donc un compte a pu être créé avec l'adresse d'autrui.
+      allowDangerousEmailAccountLinking: true,
     }),
     CredentialsProvider({
       name: "credentials",
