@@ -44,13 +44,47 @@ export async function GET(request: Request, { params }: { params: { id: string }
         return NextResponse.json(order);
       }
 
-      const updated = await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          status: nextStatus,
-          smsCode: smsResult.code,
-          fullSms: smsResult.fullText,
-        },
+      const updated = await prisma.$transaction(async (tx) => {
+        // Transition gardée par `status: "PENDING"` : le dashboard sonde cette
+        // route toutes les 3 secondes, et plusieurs onglets peuvent la sonder
+        // en parallèle. Seule la requête qui fait réellement sortir la commande
+        // de PENDING obtient count === 1 et peut rembourser.
+        const moved = await tx.order.updateMany({
+          where: { id: order.id, status: "PENDING" },
+          data: {
+            status: nextStatus,
+            smsCode: smsResult.code,
+            fullSms: smsResult.fullText,
+          },
+        });
+
+        // Numéro expiré ou annulé = aucun SMS reçu. Le client a payé pour un
+        // service qui n'a pas été rendu : son solde lui est rendu
+        // automatiquement, sans quoi le débit ressemble à un vol.
+        if (moved.count === 1 && (nextStatus === "EXPIRED" || nextStatus === "CANCELLED")) {
+          await tx.user.update({
+            where: { id: order.userId },
+            data: { balance: { increment: order.price } },
+          });
+
+          await tx.transaction.create({
+            data: {
+              userId: order.userId,
+              orderId: order.id,
+              type: "REFUND",
+              status: "SUCCESS",
+              provider: "WALLET",
+              // La contrainte d'unicité (provider, providerRef) rend un second
+              // remboursement impossible au niveau de la base, même si deux
+              // requêtes franchissaient la garde ci-dessus.
+              providerRef: `refund_${order.id}`,
+              amount: order.price,
+              currency: "FCFA",
+            },
+          });
+        }
+
+        return tx.order.findUniqueOrThrow({ where: { id: order.id } });
       });
 
       return NextResponse.json(updated);
