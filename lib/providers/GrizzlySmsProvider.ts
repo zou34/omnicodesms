@@ -21,8 +21,30 @@ import {
 // balance to buy a number wasn't part of this chantier.
 const BASE_URL = "https://api.grizzlysms.com/stubs/handler_api.php";
 
+// GrizzlySMS identifie ses pays par un entier et ne publie que des noms
+// anglais (GET ?action=getCountries — 206 pays), jamais de code ISO. La
+// correspondance est donc construite au premier appel en rapprochant ces noms
+// de ceux que l'ICU associe à notre code ISO, puis mise en cache pour la durée
+// du process.
+//
+// Sans cette résolution dynamique, seuls les 8 pays de la table de secours
+// ci-dessous étaient achetables : le repli depuis 5sim échouait donc en
+// UNSUPPORTED_COUNTRY_SERVICE sur la quasi-totalité du catalogue.
+const COUNTRY_NAME_ALIASES: Record<string, string> = {
+  // Les six pays de notre catalogue dont le nom chez GrizzlySMS ne correspond
+  // à aucune graphie ICU — relevés en direct sur leur API.
+  AR: "Argentinas",
+  CI: "Ivory Coast",
+  CZ: "Czech",
+  HK: "Hong Kong", // l'ICU dit "Hong Kong SAR China"
+  LA: "Lao",
+  SV: "Salvador",
+  US: "USA", // et non "USA (2)", qui est un second pool distinct
+};
+
+// Filet de sécurité hors ligne, si leur catalogue des pays est injoignable.
 // Confirmed via GET ?action=getCountries against the real API.
-const COUNTRY_IDS: Record<string, string> = {
+const FALLBACK_COUNTRY_IDS: Record<string, string> = {
   ID: "6",
   GB: "16",
   NG: "19",
@@ -32,6 +54,74 @@ const COUNTRY_IDS: Record<string, string> = {
   FR: "78",
   US: "187",
 };
+
+function normalizeCountryName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
+}
+
+const englishRegionNames = new Intl.DisplayNames(["en"], { type: "region" });
+
+let countryIdsByName: Map<string, string> | null = null;
+
+async function loadCountryIdsByName(): Promise<Map<string, string> | null> {
+  if (countryIdsByName) return countryIdsByName;
+
+  const apiKey = process.env.GRIZZLY_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const url = new URL(BASE_URL);
+    url.searchParams.set("api_key", apiKey);
+    url.searchParams.set("action", "getCountries");
+
+    const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(15_000) });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const data = (await response.json()) as Record<string, { id: number; eng: string }>;
+    const byName = new Map<string, string>();
+    for (const entry of Object.values(data)) {
+      byName.set(normalizeCountryName(entry.eng), String(entry.id));
+    }
+
+    countryIdsByName = byName;
+    return byName;
+  } catch (error) {
+    console.error(
+      "[GrizzlySmsProvider] catalogue pays indisponible, repli sur la table statique",
+      error
+    );
+    return null;
+  }
+}
+
+/** Résout un code ISO 3166-1 alpha-2 en identifiant de pays GrizzlySMS. */
+export async function resolveGrizzlyCountryId(isoCode: string): Promise<string | undefined> {
+  const byName = await loadCountryIdsByName();
+  if (!byName) return FALLBACK_COUNTRY_IDS[isoCode];
+
+  const alias = COUNTRY_NAME_ALIASES[isoCode];
+  if (alias) {
+    const id = byName.get(normalizeCountryName(alias));
+    if (id) return id;
+  }
+
+  let icuName: string | undefined;
+  try {
+    icuName = englishRegionNames.of(isoCode);
+  } catch {
+    icuName = undefined;
+  }
+  if (icuName) {
+    const id = byName.get(normalizeCountryName(icuName));
+    if (id) return id;
+  }
+
+  return FALLBACK_COUNTRY_IDS[isoCode];
+}
 
 // Confirmed via GET ?action=getServicesList against the real API.
 const SERVICE_CODES: Record<string, string> = {
@@ -106,7 +196,7 @@ export class GrizzlySmsProvider extends SmsProvider {
   }
 
   async getPrices(country: string, service: string): Promise<ProviderPrice> {
-    const countryId = COUNTRY_IDS[country];
+    const countryId = await resolveGrizzlyCountryId(country);
     const serviceCode = SERVICE_CODES[service];
     if (!countryId || !serviceCode) {
       throw new ProviderError(
@@ -131,7 +221,7 @@ export class GrizzlySmsProvider extends SmsProvider {
   }
 
   async rentNumber(country: string, service: string): Promise<RentedNumber> {
-    const countryId = COUNTRY_IDS[country];
+    const countryId = await resolveGrizzlyCountryId(country);
     const serviceCode = SERVICE_CODES[service];
     if (!countryId || !serviceCode) {
       throw new ProviderError(
