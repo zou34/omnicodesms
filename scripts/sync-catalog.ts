@@ -1,6 +1,7 @@
 /**
  * Synchronise le catalogue (pays, services, prix) avec l'inventaire réel du
- * fournisseur SMS, et garantit une marge sur chaque couple pays/service.
+ * fournisseur SMS, en appliquant la marge commerciale définie dans
+ * lib/pricing.ts.
  *
  * Le catalogue initial venait de prisma/seed.ts : 108 pays x 8 services
  * tarifés arbitrairement, sans lien avec ce que le fournisseur vend
@@ -9,11 +10,12 @@
  *
  * Ce script interroge l'endpoint public de 5sim (aucune authentification,
  * aucun crédit consommé), puis :
- *   - crée les couples pays/service manquants (ex. après l'ajout d'un nouveau
- *     service), uniquement quand la tarification est configurée ;
+ *   - crée les couples pays/service manquants (ex. après l'ajout d'un
+ *     nouveau service) ;
  *   - désactive tout couple pays/service que le fournisseur ne propose pas
  *     ou dont le stock est nul ;
- *   - (ré)active et retarife ceux qui sont réellement disponibles ;
+ *   - (ré)active et retarife ceux qui sont réellement disponibles, au prix
+ *     margé calculé par computeSellingPriceFcfa() ;
  *   - désactive les pays dont plus aucun service n'est vendable.
  *
  * Usage :
@@ -25,22 +27,19 @@
  * ajouté un) : le reste du catalogue n'est ni retarifé ni modifié, et l'état
  * actif/inactif des pays n'est pas touché.
  *
- * Variables requises pour le calcul des prix :
- *   SMS_UNIT_TO_FCFA   Valeur en FCFA d'UNE unité de prix fournisseur.
- *   SMS_PRICE_MARKUP   Multiplicateur de marge (ex. 2.5 = +150 %).
- *
- * Sans ces deux variables, le script tourne quand même mais se limite aux
- * activations/désactivations : il ne touche à aucun prix, ne crée aucun
- * couple, et n'active jamais un couple qui n'a jamais été tarifé. C'est
- * volontaire — un prix mal converti ou nul ferait vendre à perte.
+ * Surcharges facultatives, pour simuler un autre barème sans toucher au code :
+ *   SMS_UNIT_TO_FCFA   Valeur en FCFA d'UN dollar de coût fournisseur.
+ *   SMS_PRICE_MARKUP   Multiplicateur de marge.
+ * Absentes, la règle de lib/pricing.ts s'applique telle quelle.
  *
  * Le script est idempotent : on peut le relancer sans risque après un échec
  * réseau, il reconverge vers le même état.
  */
 import "dotenv/config";
 
-import { getFiveSimCountrySlugs, toFiveSimProduct } from "@/lib/providers/FiveSimProvider";
+import { computeSellingPriceFcfa, PRICE_MARKUP, USD_TO_FCFA } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { getFiveSimCountrySlugs, toFiveSimProduct } from "@/lib/providers/FiveSimProvider";
 
 const BASE_URL = "https://5sim.net/v1";
 const APPLY = process.argv.includes("--apply");
@@ -51,10 +50,10 @@ const SERVICE_FILTER =
 // d'une par couple pays/service.
 const CHUNK_SIZE = 200;
 
-const unitToFcfa = Number(process.env.SMS_UNIT_TO_FCFA);
-const markup = Number(process.env.SMS_PRICE_MARKUP);
-const canPrice =
-  Number.isFinite(unitToFcfa) && unitToFcfa > 0 && Number.isFinite(markup) && markup > 0;
+// `||` et non `??` : une variable vide ou non numérique retombe sur la règle
+// par défaut plutôt que de produire un prix aberrant.
+const usdToFcfa = Number(process.env.SMS_UNIT_TO_FCFA) || USD_TO_FCFA;
+const markup = Number(process.env.SMS_PRICE_MARKUP) || PRICE_MARKUP;
 
 interface ProductEntry {
   Category: string;
@@ -134,10 +133,8 @@ async function withRetry<T>(operation: () => Promise<T>): Promise<T> {
 async function main() {
   console.log(APPLY ? "=== SYNCHRONISATION (écriture) ===" : "=== SIMULATION (aucune écriture) ===");
   console.log(
-    canPrice
-      ? `Tarification : 1 unité fournisseur = ${unitToFcfa} FCFA, marge x${markup}`
-      : "Tarification : DÉSACTIVÉE (SMS_UNIT_TO_FCFA / SMS_PRICE_MARKUP absentes ou invalides)\n" +
-          "               -> seules les disponibilités sont synchronisées, les prix restent inchangés."
+    `Tarification : prix de vente = coût USD x ${usdToFcfa} x ${markup}, ` +
+      "arrondi à la dizaine de FCFA supérieure"
   );
 
   const slugs = await getFiveSimCountrySlugs();
@@ -171,12 +168,7 @@ async function main() {
   );
 
   let created = 0;
-  if (missing.length > 0 && !canPrice) {
-    console.warn(
-      `\n! ${missing.length} couple(s) pays/service manquant(s) non créé(s) : ` +
-        "la tarification est requise pour ne jamais vendre à 0 FCFA."
-    );
-  } else if (missing.length > 0 && APPLY) {
+  if (missing.length > 0 && APPLY) {
     // Créés inactifs à 0 FCFA : la phase 1 ci-dessous les tarifie puis
     // n'active que ceux que le fournisseur a réellement en stock.
     for (const batch of chunk(missing, CHUNK_SIZE)) {
@@ -204,7 +196,6 @@ async function main() {
   const unmapped: string[] = [];
   const unreadable: string[] = [];
   const preview: string[] = [];
-  let unpriced = 0;
 
   function deactivateCountry(countryId: string) {
     countriesOff.push(countryId);
@@ -250,32 +241,18 @@ async function main() {
         continue;
       }
 
-      if (!canPrice && pair.price <= 0) {
-        // Couple jamais tarifé : l'activer sans tarification le mettrait en
-        // vente à 0 FCFA.
-        unpriced++;
-        toDeactivate.push(pair.id);
-        continue;
-      }
-
       sellable++;
       toActivate.push(pair.id);
 
-      // Arrondi à la dizaine de FCFA supérieure : jamais en dessous du coût
-      // majoré, et un prix affichable proprement.
-      const price = canPrice ? Math.ceil((entry.Price * unitToFcfa * markup) / 10) * 10 : null;
-
-      if (price !== null) {
-        const bucket = byPrice.get(price);
-        if (bucket) bucket.push(pair.id);
-        else byPrice.set(price, [pair.id]);
-      }
+      const price = computeSellingPriceFcfa(entry.Price, { usdToFcfa, markup });
+      const bucket = byPrice.get(price);
+      if (bucket) bucket.push(pair.id);
+      else byPrice.set(price, [pair.id]);
 
       if (preview.length < 12) {
         preview.push(
           `  ${country.code}/${service.slug.padEnd(10)} stock ${String(entry.Qty).padStart(9)}` +
-            ` | coût ${String(entry.Price).padStart(6)}` +
-            (price !== null ? ` | vente ${String(price).padStart(6)} FCFA` : " | prix inchangé")
+            ` | coût ${String(entry.Price).padStart(6)} USD | vente ${String(price).padStart(6)} FCFA`
         );
       }
     }
@@ -331,17 +308,14 @@ async function main() {
   console.log("\n=== BILAN ===");
   if (missing.length > 0) {
     console.log(
-      APPLY && canPrice
+      APPLY
         ? `  couples créés      : ${created}`
-        : `  couples à créer    : ${missing.length}${canPrice ? " (relancez avec --apply)" : ""}`
+        : `  couples à créer    : ${missing.length} (relancez avec --apply)`
     );
   }
   console.log(`  couples activés    : ${toActivate.length}`);
   console.log(`  couples désactivés : ${toDeactivate.length}`);
-  console.log(`  couples retarifés  : ${canPrice ? toActivate.length : 0}${canPrice ? ` (${byPrice.size} prix distincts)` : ""}`);
-  if (unpriced > 0) {
-    console.log(`  couples jamais tarifés laissés inactifs : ${unpriced}`);
-  }
+  console.log(`  couples tarifés    : ${toActivate.length} (${byPrice.size} prix distincts)`);
   if (!SERVICE_FILTER) {
     console.log(`  pays vendables     : ${countriesOn.length}`);
   }
