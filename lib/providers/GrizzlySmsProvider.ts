@@ -138,6 +138,9 @@ const SERVICE_CODES: Record<string, string> = {
   youtube: "go",
 };
 
+// Même délai que chez 5sim : un fournisseur qui ne répond pas ne doit jamais
+// immobiliser la requête d'achat.
+const REQUEST_TIMEOUT_MS = 8_000;
 const ACTIVATION_TTL_MS = 20 * 60 * 1000;
 
 export class GrizzlySmsProvider extends SmsProvider {
@@ -157,7 +160,7 @@ export class GrizzlySmsProvider extends SmsProvider {
 
     let response: Response;
     try {
-      response = await fetch(url);
+      response = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
     } catch (error) {
       console.error("[GrizzlySmsProvider] network error", error);
       throw new ProviderError("Service temporairement indisponible.", "PROVIDER_UNAVAILABLE");

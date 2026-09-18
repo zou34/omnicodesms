@@ -7,6 +7,11 @@ import { prisma } from "@/lib/prisma";
 import { getSmsProvider, ProviderError } from "@/lib/providers";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
+// Un achat enchaîne jusqu'à deux appels fournisseurs (5sim puis GrizzlySMS en
+// repli), chacun plafonné à 8 s, plus les écritures en base. La valeur par
+// défaut de Vercel ne laisserait pas au repli le temps de s'exécuter.
+export const maxDuration = 30;
+
 // Keyed per user (not IP): each purchase debits that user's own balance and
 // calls the upstream SMS provider, so the thing worth throttling is one
 // account rapid-firing — whether via a bug, a compromised session, or a bot

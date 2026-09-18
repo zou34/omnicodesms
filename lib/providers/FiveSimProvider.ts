@@ -19,6 +19,13 @@ import {
 // of this chantier.
 const BASE_URL = "https://5sim.net/v1";
 
+// Délai d'attente sur CHAQUE appel fournisseur. Sans lui, une API qui ne
+// répond jamais immobilisait la fonction serverless jusqu'à sa limite de
+// durée : le client voyait un spinner sans fin, et SmartSmsProvider n'avait
+// jamais la main pour basculer sur GrizzlySMS. 8 s laisse au repli le temps
+// de jouer dans le budget de la requête.
+const REQUEST_TIMEOUT_MS = 8_000;
+
 // 5sim identifie ses pays par un slug anglais, pas par code ISO. La table
 // ci-dessous n'est qu'un filet de sécurité hors ligne : la correspondance
 // réelle est construite au premier appel depuis GET /guest/countries (153
@@ -182,6 +189,7 @@ export class FiveSimProvider extends SmsProvider {
     try {
       response = await fetch(`${BASE_URL}${path}`, {
         headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch (error) {
       console.error("[FiveSimProvider] network error", error);
