@@ -40,6 +40,32 @@ const FALLBACK_COUNTRY_SLUGS: Record<string, string> = {
 
 interface FiveSimCountry {
   iso?: Record<string, number>;
+  text_en?: string;
+}
+
+const englishRegionNames = new Intl.DisplayNames(["en"], { type: "region" });
+
+function normalizeCountryName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
+}
+
+/**
+ * Vrai si le nom anglais publié par 5sim est bien celui du pays désigné par
+ * ce code ISO — et non celui d'un territoire voisin qui revendiquerait le
+ * même code.
+ */
+function matchesIsoCode(isoCode: string, textEn: string): boolean {
+  if (!textEn) return false;
+  try {
+    const icu = englishRegionNames.of(isoCode);
+    return Boolean(icu) && normalizeCountryName(icu!) === normalizeCountryName(textEn);
+  } catch {
+    return false;
+  }
 }
 
 let countrySlugCache: Record<string, string> | null = null;
@@ -48,6 +74,14 @@ let countrySlugCache: Record<string, string> | null = null;
  * Construit (et met en cache) la correspondance code ISO -> slug 5sim à
  * partir du catalogue public de 5sim. L'endpoint est "guest" : il ne
  * consomme aucun crédit et ne demande aucune authentification.
+ *
+ * Deux pays de leur catalogue peuvent revendiquer le MÊME code ISO : la
+ * Guyane française déclare "fr" au lieu de "gf", et comme elle arrive après
+ * la France dans leur JSON, une simple affectation la laissait gagner — tout
+ * achat de numéro français partait alors en Guyane. En cas de conflit, on
+ * retient donc l'entrée dont le nom anglais correspond réellement au code
+ * ISO ; à défaut, la première rencontrée (au lieu de la dernière, qui n'a
+ * aucune raison d'être la bonne).
  *
  * En cas d'échec réseau, on retombe sur FALLBACK_COUNTRY_SLUGS plutôt que
  * de faire échouer tous les achats.
@@ -66,10 +100,23 @@ export async function getFiveSimCountrySlugs(): Promise<Record<string, string>> 
 
     const data = (await response.json()) as Record<string, FiveSimCountry>;
     const map: Record<string, string> = { ...FALLBACK_COUNTRY_SLUGS };
+    const chosenByExactName = new Set<string>();
 
     for (const [slug, entry] of Object.entries(data)) {
+      const textEn = entry.text_en ?? "";
+
       for (const iso of Object.keys(entry.iso ?? {})) {
-        map[iso.toUpperCase()] = slug;
+        const code = iso.toUpperCase();
+        const exact = matchesIsoCode(code, textEn);
+
+        // Une correspondance exacte s'impose toujours ; sinon on ne remplace
+        // que si rien n'a encore été retenu pour ce code.
+        if (exact) {
+          map[code] = slug;
+          chosenByExactName.add(code);
+        } else if (!chosenByExactName.has(code) && !(code in map)) {
+          map[code] = slug;
+        }
       }
     }
 

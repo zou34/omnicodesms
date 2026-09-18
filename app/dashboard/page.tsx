@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth";
+import { isPriorityCountry, sortCountriesForDisplay, toFrenchCountryName } from "@/lib/countries";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { prisma } from "@/lib/prisma";
 
@@ -37,11 +38,16 @@ export default async function DashboardPage() {
       userName={user.name}
       userEmail={user.email}
       initialBalance={user.balance.toString()}
-      countries={countries.map((country) => ({
-        id: country.id,
-        code: country.code,
-        name: country.name,
-      }))}
+      countries={sortCountriesForDisplay(
+        countries.map((country) => ({
+          id: country.id,
+          code: country.code,
+          // Nom français dérivé du code ISO : la base stocke des noms anglais,
+          // introuvables pour un client francophone (voir lib/countries.ts).
+          name: toFrenchCountryName(country.code, country.name),
+          isPriority: isPriorityCountry(country.code),
+        }))
+      )}
       services={services.map((service) => ({
         id: service.id,
         slug: service.slug,
@@ -62,7 +68,7 @@ export default async function DashboardPage() {
         price: order.price.toString(),
         createdAt: order.createdAt.toISOString(),
         expiresAt: order.expiresAt ? order.expiresAt.toISOString() : null,
-        countryName: order.country.name,
+        countryName: toFrenchCountryName(order.country.code, order.country.name),
         countryCode: order.country.code,
         serviceName: order.service.name,
       }))}

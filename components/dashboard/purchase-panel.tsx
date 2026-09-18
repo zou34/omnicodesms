@@ -30,6 +30,9 @@ export function PurchasePanel({
   // wallet does nothing to fix, so that case keeps the plain error banner.
   const [isOwnBalanceLow, setIsOwnBalanceLow] = useState(false);
 
+  const priorityCountries = useMemo(() => countries.filter((c) => c.isPriority), [countries]);
+  const otherCountries = useMemo(() => countries.filter((c) => !c.isPriority), [countries]);
+
   // Only services actually sellable in the selected country are offered: the
   // catalog sync (scripts/sync-catalog.ts) deactivates pairs the provider
   // doesn't stock (e.g. WhatsApp/Telegram in Venezuela), which used to show up
@@ -116,11 +119,26 @@ export function PurchasePanel({
             onChange={(e) => setCountryId(e.target.value)}
             className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-500"
           >
-            {countries.map((country) => (
-              <option key={country.id} value={country.id}>
-                {country.name} ({country.code})
-              </option>
-            ))}
+            {/* Les destinations à fort volume sont regroupées en tête : la
+                liste complète compte près de 90 pays, et un client qui doit la
+                parcourir pour trouver les États-Unis ou la France conclut
+                qu'ils ne sont pas proposés. */}
+            {priorityCountries.length > 0 && (
+              <optgroup label="Les plus demandés">
+                {priorityCountries.map((country) => (
+                  <option key={country.id} value={country.id}>
+                    {country.name} ({country.code})
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label="Tous les pays">
+              {otherCountries.map((country) => (
+                <option key={country.id} value={country.id}>
+                  {country.name} ({country.code})
+                </option>
+              ))}
+            </optgroup>
           </select>
         </div>
 

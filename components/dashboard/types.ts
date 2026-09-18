@@ -4,6 +4,8 @@ export interface CountryVM {
   id: string;
   code: string;
   name: string;
+  /** Pays à fort volume, regroupé en tête du sélecteur. */
+  isPriority: boolean;
 }
 
 export interface ServiceVM {
