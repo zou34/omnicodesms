@@ -138,7 +138,7 @@ function deriveCustomerName(email: string): string {
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1));
 
-  return words.join(" ") || "Client OmniCodeSMS";
+  return words.join(" ") || "Client FlashCodeSMS";
 }
 
 /**

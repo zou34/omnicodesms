@@ -72,7 +72,7 @@ export function PhoneShowcase() {
               </div>
 
               <div className="mb-4 flex items-center justify-between">
-                <span className="text-sm font-extrabold text-slate-900">OmniCodeSMS</span>
+                <span className="text-sm font-extrabold text-slate-900">FlashCodeSMS</span>
                 <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   Live

@@ -53,7 +53,7 @@ export function AdminSidebar() {
       {/* Mobile-only top bar; the desktop sidebar has its own always-visible
           brand header below, so this is hidden from lg: up. */}
       <header className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-slate-800 bg-slate-950 px-4 text-white lg:hidden">
-        <span className="text-base font-bold tracking-tight">OmniCodeSMS</span>
+        <span className="text-base font-bold tracking-tight">FlashCodeSMS</span>
         <button
           type="button"
           onClick={() => setIsOpen(true)}
@@ -88,7 +88,7 @@ export function AdminSidebar() {
         </button>
 
         <div className="px-6 py-6">
-          <span className="text-lg font-bold tracking-tight">OmniCodeSMS</span>
+          <span className="text-lg font-bold tracking-tight">FlashCodeSMS</span>
           <p className="mt-0.5 text-xs text-slate-500">Panneau d&apos;administration</p>
         </div>
 

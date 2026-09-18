@@ -26,7 +26,7 @@ export function WhyChooseUs() {
           <span aria-hidden className="mb-5 h-2.5 w-2.5 rounded-sm bg-blue-500" />
 
           <h2 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
-            Pourquoi Choisir OmniCodeSMS ?
+            Pourquoi Choisir FlashCodeSMS ?
           </h2>
 
           <p className="mt-5 max-w-2xl text-base text-slate-600 sm:text-lg">

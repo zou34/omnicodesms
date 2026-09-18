@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       const { checkoutUrl } = await provider.initializePayment({
         reference,
         amountFcfa: rechargeAmount.priceFcfa,
-        description: `Recharge OmniCodeSMS — ${rechargeAmount.priceFcfa} FCFA`,
+        description: `Recharge FlashCodeSMS — ${rechargeAmount.priceFcfa} FCFA`,
         customerEmail: session.user.email ?? "",
         returnUrl: `${APP_URL}/dashboard?payment=success`,
         cancelUrl: `${APP_URL}/dashboard?payment=cancelled`,

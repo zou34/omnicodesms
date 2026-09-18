@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/marketing/page-header";
 
 export const metadata: Metadata = {
-  title: "Politique de Confidentialité — OmniCodeSMS",
+  title: "Politique de Confidentialité — FlashCodeSMS",
 };
 
 export default function PrivacyPage() {

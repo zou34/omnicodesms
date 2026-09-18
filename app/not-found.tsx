@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Page introuvable — OmniCodeSMS",
+  title: "Page introuvable — FlashCodeSMS",
 };
 
 export default function NotFound() {

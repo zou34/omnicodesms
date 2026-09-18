@@ -6,7 +6,7 @@ import { EmailProvider } from "@/lib/email/EmailProvider";
 // Resend restricts its recipients (typically to the account owner's own
 // address) until a real domain is verified. Override with EMAIL_FROM once
 // a domain is set up in the Resend dashboard.
-const DEFAULT_FROM = "OmniCodeSMS <onboarding@resend.dev>";
+const DEFAULT_FROM = "FlashCodeSMS <onboarding@resend.dev>";
 
 export class ResendEmailProvider extends EmailProvider {
   readonly name = "resend";
@@ -28,9 +28,9 @@ export class ResendEmailProvider extends EmailProvider {
     const { error } = await this.client.emails.send({
       from,
       to,
-      subject: "Réinitialisez votre mot de passe OmniCodeSMS",
+      subject: "Réinitialisez votre mot de passe FlashCodeSMS",
       html: renderPasswordResetHtml(resetUrl),
-      text: `Réinitialisez votre mot de passe OmniCodeSMS en ouvrant ce lien (valable 1 heure) : ${resetUrl}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.`,
+      text: `Réinitialisez votre mot de passe FlashCodeSMS en ouvrant ce lien (valable 1 heure) : ${resetUrl}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.`,
     });
 
     if (error) {
@@ -72,7 +72,7 @@ function renderPasswordResetHtml(resetUrl: string): string {
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color: #0f172a; padding: 32px 16px;">
       <div style="max-width: 480px; margin: 0 auto; background-color: #1e293b; border-radius: 16px; padding: 32px; border: 1px solid #334155;">
-        <p style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0 0 24px;">OmniCodeSMS</p>
+        <p style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0 0 24px;">FlashCodeSMS</p>
         <h1 style="color: #ffffff; font-size: 18px; margin: 0 0 12px;">Réinitialisez votre mot de passe</h1>
         <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
           Vous avez demandé la réinitialisation de votre mot de passe. Ce lien est valable 1 heure et ne peut être utilisé qu'une seule fois.
@@ -100,7 +100,7 @@ function renderContactMessageHtml({
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color: #0f172a; padding: 32px 16px;">
       <div style="max-width: 480px; margin: 0 auto; background-color: #1e293b; border-radius: 16px; padding: 32px; border: 1px solid #334155;">
-        <p style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0 0 24px;">OmniCodeSMS</p>
+        <p style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0 0 24px;">FlashCodeSMS</p>
         <h1 style="color: #ffffff; font-size: 18px; margin: 0 0 12px;">Nouveau message de contact</h1>
         <p style="color: #94a3b8; font-size: 14px; margin: 0 0 16px;">
           De <strong style="color: #ffffff;">${escapeHtml(name)}</strong> — ${escapeHtml(from)}

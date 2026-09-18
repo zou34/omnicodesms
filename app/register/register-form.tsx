@@ -63,7 +63,7 @@ export function RegisterForm() {
   return (
     <AuthShell
       icon={UserPlus}
-      title="Inscrivez-vous à OmniCodeSMS"
+      title="Inscrivez-vous à FlashCodeSMS"
       subtitle="Accédez instantanément à vos numéros virtuels sécurisés."
     >
       {error && (

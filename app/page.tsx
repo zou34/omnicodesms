@@ -29,7 +29,7 @@ export default function Home() {
         <div className="relative flex flex-col pb-24 sm:pb-0">
           {/* Public header */}
           <header className="flex items-center justify-between px-6 py-6 sm:px-10">
-            <span className="text-xl font-bold tracking-tight">OmniCodeSMS</span>
+            <span className="text-xl font-bold tracking-tight">FlashCodeSMS</span>
 
             <nav className="hidden items-center gap-6 sm:flex">
               <InstallPwaButton className="flex items-center gap-1.5 rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-blue-100 transition hover:border-white/40 hover:text-white">
@@ -49,14 +49,14 @@ export default function Home() {
 
           {/* Hero section */}
           <main className="flex flex-col items-center px-6 pt-10 pb-4 text-center sm:px-10 sm:pt-16">
-            <p className="text-lg font-bold text-blue-200 sm:text-2xl">OmniCodeSMS</p>
+            <p className="text-lg font-bold text-blue-200 sm:text-2xl">FlashCodeSMS</p>
 
             <h1 className="mt-4 max-w-4xl text-4xl font-extrabold leading-tight sm:text-6xl">
               Vérification Instantanée, Fiabilité Absolue
             </h1>
 
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-blue-100 sm:text-lg">
-              OmniCodeSMS est la plateforme professionnelle de référence pour recevoir des SMS en
+              FlashCodeSMS est la plateforme professionnelle de référence pour recevoir des SMS en
               ligne et valider vos comptes sans carte SIM. Obtenez instantanément des numéros
               virtuels dans plus de 170 pays pour débloquer WhatsApp, Telegram, Facebook,
               Instagram, TikTok, Google, YouTube et bien d&apos;autres.

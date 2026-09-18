@@ -13,7 +13,7 @@ export function Footer() {
   return (
     <footer className="bg-slate-950 px-6 py-16 pb-28 text-white sm:px-10 sm:pb-16">
       <div className="mx-auto max-w-3xl text-center">
-        <h3 className="text-2xl font-bold tracking-tight">OmniCodeSMS</h3>
+        <h3 className="text-2xl font-bold tracking-tight">FlashCodeSMS</h3>
         <p className="mt-2 text-sm text-slate-400">
           Numéros Virtuels pour Vérification SMS
         </p>
@@ -40,7 +40,7 @@ export function Footer() {
         </Link>
 
         <p className="mt-10 border-t border-white/10 pt-6 text-xs text-slate-500">
-          © 2026 OmniCodeSMS. Tous droits réservés.
+          © 2026 FlashCodeSMS. Tous droits réservés.
         </p>
       </div>
     </footer>

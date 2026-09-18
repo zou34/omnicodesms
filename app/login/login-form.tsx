@@ -63,7 +63,7 @@ function LoginFormContent() {
   return (
     <AuthShell
       icon={Lock}
-      title="Connectez-vous à OmniCodeSMS"
+      title="Connectez-vous à FlashCodeSMS"
       subtitle="Accédez instantanément à vos numéros virtuels sécurisés."
     >
       {error && (

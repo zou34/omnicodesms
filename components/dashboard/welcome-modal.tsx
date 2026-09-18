@@ -75,7 +75,7 @@ export function WelcomeModal({ onRecharge }: WelcomeModalProps) {
         </span>
 
         <h2 id="welcome-title" className="mt-5 text-xl font-bold text-white">
-          Bienvenue sur OmniCodeSMS !
+          Bienvenue sur FlashCodeSMS !
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-slate-400">
           Pour commencer à louer des numéros, veuillez d&apos;abord recharger votre solde.

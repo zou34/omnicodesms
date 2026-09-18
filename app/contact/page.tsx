@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/marketing/page-header";
 import { ContactForm } from "./contact-form";
 
 export const metadata: Metadata = {
-  title: "Contact — OmniCodeSMS",
+  title: "Contact — FlashCodeSMS",
 };
 
 export default function ContactPage() {

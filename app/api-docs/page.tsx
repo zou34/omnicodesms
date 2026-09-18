@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/marketing/page-header";
 
 export const metadata: Metadata = {
-  title: "Documentation API — OmniCodeSMS",
+  title: "Documentation API — FlashCodeSMS",
 };
 
 export default function ApiDocsPage() {
@@ -15,7 +15,7 @@ export default function ApiDocsPage() {
         <div className="prose prose-slate">
           <h1>Documentation API</h1>
           <p>
-            L&apos;API OmniCodeSMS vous permet de louer des numéros virtuels et de récupérer les
+            L&apos;API FlashCodeSMS vous permet de louer des numéros virtuels et de récupérer les
             codes SMS reçus directement depuis votre propre application, sans passer par le
             tableau de bord.
           </p>
@@ -39,7 +39,7 @@ export default function ApiDocsPage() {
           </div>
           <pre className="overflow-x-auto px-4 py-4 text-sm leading-relaxed">
             <code className="font-mono text-emerald-400">
-              {`curl -X GET "https://api.omnicodesms.com/v1/numbers?country=US&service=whatsapp" \\
+              {`curl -X GET "https://api.flashcodesms.com/v1/numbers?country=US&service=whatsapp" \\
   -H "Authorization: Bearer YOUR_API_KEY"`}
             </code>
           </pre>

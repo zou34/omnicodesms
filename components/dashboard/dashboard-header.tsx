@@ -21,7 +21,7 @@ export function DashboardHeader({
   return (
     <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4 sm:px-6">
-        <span className="text-lg font-semibold tracking-tight text-white">OmniCodeSMS</span>
+        <span className="text-lg font-semibold tracking-tight text-white">FlashCodeSMS</span>
 
         <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4">
           <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-400 sm:gap-2 sm:px-4 sm:text-sm">

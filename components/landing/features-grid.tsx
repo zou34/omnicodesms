@@ -9,7 +9,7 @@ function TerminalMockup() {
         <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
       </div>
       <div className="space-y-1 px-4 py-3 font-mono text-[11px] leading-relaxed">
-        <p className="text-emerald-400">$ omnicodesms connect --fast</p>
+        <p className="text-emerald-400">$ flashcodesms connect --fast</p>
         <p className="text-emerald-500/70">✓ Numéro attribué en 2.4s</p>
       </div>
     </div>

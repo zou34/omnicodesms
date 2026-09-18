@@ -22,23 +22,23 @@ const geistMono = localFont({
 // (this is what broke the first production deploy: metadataBase threw
 // ERR_INVALID_URL for every page, first surfaced on /admin/numbers).
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-const SITE_DESCRIPTION = "OmniCodeSMS — plateforme de numéros virtuels pour la réception de SMS.";
+const SITE_DESCRIPTION = "FlashCodeSMS — plateforme de numéros virtuels pour la réception de SMS.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
-  title: "OmniCodeSMS",
+  title: "FlashCodeSMS",
   description: SITE_DESCRIPTION,
   openGraph: {
-    title: "OmniCodeSMS",
+    title: "FlashCodeSMS",
     description: SITE_DESCRIPTION,
     url: APP_URL,
-    siteName: "OmniCodeSMS",
+    siteName: "FlashCodeSMS",
     locale: "fr_FR",
     type: "website",
   },
   twitter: {
     card: "summary",
-    title: "OmniCodeSMS",
+    title: "FlashCodeSMS",
     description: SITE_DESCRIPTION,
   },
 };

@@ -5,8 +5,8 @@ import type { MetadataRoute } from "next";
 // app/sitemap.ts are already handled.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "OmniCodeSMS",
-    short_name: "OmniCodeSMS",
+    name: "FlashCodeSMS",
+    short_name: "FlashCodeSMS",
     description: "Numéros virtuels pour recevoir vos SMS de vérification, sans carte SIM.",
     start_url: "/dashboard",
     display: "standalone",
