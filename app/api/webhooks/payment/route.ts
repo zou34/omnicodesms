@@ -16,10 +16,11 @@ const WEBHOOK_WINDOW_MS = 60 * 1000;
 // only thing standing between an unauthenticated internet endpoint and
 // crediting real money to a user's balance.
 //
-// Always answers 200 once the payload is at least readable — gateways
-// retry aggressively (often for hours/days) on anything else, and a
-// stream of retries for a payload we already understood (but, say, don't
-// recognize the reference for) just adds noise without fixing anything.
+// Answers 200 once the payload is understood, even when we can't act on it
+// (unknown reference, amount mismatch, duplicate) — a retry of the same
+// payload wouldn't change the outcome and would only add noise. The one
+// exception is an internal failure (database unreachable): that answers 500
+// on purpose, so the gateway retries once we're back up.
 export async function POST(request: Request) {
   const ip = getClientIp(request.headers);
   const limit = rateLimit(`webhook:${ip}`, WEBHOOK_LIMIT, WEBHOOK_WINDOW_MS);
@@ -119,9 +120,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
     console.error("[POST /api/webhooks/payment]", error);
-    // Still 200: an internal error here won't be fixed by the gateway
-    // resending the exact same payload — alerting should happen off the
-    // back of the log line above, not a retry storm.
-    return NextResponse.json({ received: true }, { status: 200 });
+    // 500 pour que SasPay relance (+30 s, +5 min, +30 min, +2 h) : une panne
+    // passagère de la base ne doit pas avaler un vrai paiement, car ce
+    // webhook est le seul chemin qui crédite un solde. Les relances sont sans
+    // risque — la garde PENDING ci-dessus ne crédite qu'une seule fois.
+    return NextResponse.json({ error: "Erreur interne." }, { status: 500 });
   }
 }
