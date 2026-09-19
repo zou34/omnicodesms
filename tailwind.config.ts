@@ -18,6 +18,13 @@ const config: Config = {
           "0%, 100%": { transform: "translateY(0px)" },
           "50%": { transform: "translateY(-14px)" },
         },
+        // Défilement infini des témoignages : la piste contient deux copies
+        // identiques de la liste, donc translater de -50 % ramène exactement
+        // la seconde copie là où était la première — la boucle est invisible.
+        marquee: {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
         "toast-in": {
           "0%": { opacity: "0", transform: "translateY(8px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
@@ -28,6 +35,7 @@ const config: Config = {
         "float-slow": "float 6s ease-in-out infinite",
         "float-slower": "float 7.5s ease-in-out infinite",
         "spin-glow": "spin 3.5s linear infinite",
+        marquee: "marquee 70s linear infinite",
         "toast-in": "toast-in 0.2s ease-out",
       },
     },

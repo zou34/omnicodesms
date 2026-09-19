@@ -138,6 +138,9 @@ const services = [
   // Sold through the providers' "google" product — see toFiveSimProduct in
   // lib/providers/FiveSimProvider.ts.
   { name: "YouTube", slug: "youtube" },
+  { name: "Vinted", slug: "vinted" },
+  { name: "OpenAI / ChatGPT", slug: "openai" },
+  { name: "Tinder", slug: "tinder" },
 ];
 
 // Base price (FCFA) per service; countries apply a small multiplier so
@@ -153,6 +156,9 @@ const basePriceByService: Record<string, number> = {
   twitter: 75,
   discord: 55,
   tiktok: 85,
+  vinted: 70,
+  openai: 90,
+  tinder: 65,
 };
 
 const priceMultiplierByCountry: Record<string, number> = {

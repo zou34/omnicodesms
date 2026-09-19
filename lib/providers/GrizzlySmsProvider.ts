@@ -136,6 +136,15 @@ const SERVICE_CODES: Record<string, string> = {
   // No separate YouTube code: a YouTube account is a Google account, verified
   // with the same "go" code (same stock, same price).
   youtube: "go",
+  vinted: "kc",
+  // GrizzlySMS renomme les marques déposées dans son catalogue : "oi" y est
+  // listé "Tind Swipe App" et "dr" "AI Chat", alors que ce sont les codes du
+  // protocole sms-activate pour Tinder et OpenAI — les mêmes que ceux déjà
+  // utilisés ci-dessus (wa, tg, fb, go...). Ne cherchez donc pas "Tinder" ou
+  // "OpenAI" dans getServicesList : vous ne les trouverez pas sous ce nom.
+  // Stock confirmé en direct : ~200 pays pour chacun des deux codes.
+  tinder: "oi",
+  openai: "dr",
 };
 
 // Même délai que chez 5sim : un fournisseur qui ne répond pas ne doit jamais

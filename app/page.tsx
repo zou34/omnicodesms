@@ -1,6 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
+import { Faq } from "@/components/landing/faq";
 import { FeaturesGrid } from "@/components/landing/features-grid";
 import { FinalCta } from "@/components/landing/final-cta";
 import { Footer } from "@/components/landing/footer";
@@ -9,6 +10,7 @@ import { PaymentMethods } from "@/components/landing/payment-methods";
 import { PhoneShowcase } from "@/components/landing/phone-showcase";
 import { Pricing } from "@/components/landing/pricing";
 import { ReferralSection } from "@/components/landing/referral-section";
+import { Testimonials } from "@/components/landing/testimonials";
 import { WhyChooseUs } from "@/components/landing/why-choose-us";
 import { InstallPwaButton } from "@/components/pwa/install-pwa-button";
 import { GlowingButton } from "@/components/ui/glowing-button";
@@ -97,6 +99,12 @@ export default function Home() {
 
       {/* Final CTA */}
       <FinalCta />
+
+      {/* Preuve sociale, puis levée des dernières objections : les deux
+          dernières choses lues avant le pied de page. */}
+      <Testimonials />
+
+      <Faq />
 
       <Footer />
 

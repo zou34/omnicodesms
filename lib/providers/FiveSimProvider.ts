@@ -137,10 +137,10 @@ export async function getFiveSimCountrySlugs(): Promise<Record<string, string>> 
 
 // 5sim's product slugs match our own Service.slug values as-is (confirmed via
 // GET /guest/products/usa/any: whatsapp, telegram, facebook, google,
-// instagram, tiktok, twitter, discord) — except for services 5sim doesn't sell
-// as a separate product. There is no "youtube" product: a YouTube account is
-// a Google account, so it's verified with the "google" product (same number
-// pool, same price).
+// instagram, tiktok, twitter, discord, vinted, openai, tinder) — except for
+// services 5sim doesn't sell as a separate product. There is no "youtube"
+// product: a YouTube account is a Google account, so it's verified with the
+// "google" product (same number pool, same price).
 const PRODUCT_ALIASES: Record<string, string> = {
   youtube: "google",
 };
