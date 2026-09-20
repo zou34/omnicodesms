@@ -3,7 +3,7 @@
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 
-const REFERRAL_CODE = "OMNI-2026";
+const REFERRAL_CODE = "FLASH-2026";
 
 export function ReferralCodeCard() {
   const [copied, setCopied] = useState(false);

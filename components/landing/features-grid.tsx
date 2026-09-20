@@ -33,9 +33,9 @@ function PriceReceiptMockup() {
     <div className="flex h-24 items-center justify-center">
       <div className="w-32 rounded-lg bg-white p-3 text-center shadow-md ring-1 ring-slate-100">
         <p className="text-[10px] text-slate-400">Numéro US</p>
-        <p className="text-xs text-slate-400 line-through">0.89 $</p>
+        <p className="text-xs text-slate-400 line-through">500 FCFA</p>
         <p className="border-t border-dashed border-slate-200 pt-1 text-lg font-extrabold text-emerald-600">
-          0.50 $
+          300 FCFA
         </p>
       </div>
     </div>
@@ -102,7 +102,7 @@ const FEATURES = [
   },
   {
     title: "Prix Abordables",
-    description: "À partir de 0.50$ seulement.",
+    description: "À partir de 300 FCFA seulement.",
     Mockup: PriceReceiptMockup,
   },
   {
