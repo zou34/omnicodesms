@@ -22,8 +22,13 @@ export abstract class SmsProvider {
   /** Price and stock for a given (country, service) pair. */
   abstract getPrices(country: string, service: string): Promise<ProviderPrice>;
 
-  /** Rents a fresh virtual number for the given (country, service) pair. */
-  abstract rentNumber(country: string, service: string): Promise<RentedNumber>;
+  /** Rents a fresh virtual number for the given (country, service) pair.
+   *  sellingPriceFcfa — prix de vente catalogue. Fourni, il arme le garde-fou
+   *  marge (lib/providers/margin-guard.ts) : tout fournisseur refuse alors
+   *  l'achat si le coût réel converti en FCFA atteint ce prix de vente, ou si
+   *  ce coût ne peut pas être établi. Omis, l'achat n'est pas arbitré — à
+   *  réserver aux scripts de diagnostic, jamais au tunnel d'achat client. */
+  abstract rentNumber(country: string, service: string, sellingPriceFcfa?: number): Promise<RentedNumber>;
 
   /** Polls the current SMS status/content for a previously rented number. */
   abstract getSms(orderId: string): Promise<SmsResult>;

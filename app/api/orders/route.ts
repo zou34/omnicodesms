@@ -7,10 +7,14 @@ import { prisma } from "@/lib/prisma";
 import { getSmsProvider, ProviderError } from "@/lib/providers";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
-// Un achat enchaîne jusqu'à deux appels fournisseurs (5sim puis GrizzlySMS en
-// repli), chacun plafonné à 8 s, plus les écritures en base. La valeur par
-// défaut de Vercel ne laisserait pas au repli le temps de s'exécuter.
-export const maxDuration = 30;
+// Budget de la requête, calé sur le pire enchaînement réellement possible,
+// chaque appel fournisseur étant plafonné à 8 s :
+//   5sim /user/buy (8) + annulation garde-fou marge (8)
+//   + GrizzlySMS getPrices (8) + getNumber (8) = 32 s, plus les écritures.
+// À 30 s la fonction était tuée au milieu de ce scénario — et une coupure
+// entre la location et l'écriture en base laisse un numéro payé chez le
+// fournisseur que plus personne ne réclame.
+export const maxDuration = 45;
 
 // Keyed per user (not IP): each purchase debits that user's own balance and
 // calls the upstream SMS provider, so the thing worth throttling is one
@@ -132,7 +136,12 @@ export async function POST(request: Request) {
     const provider = getSmsProvider();
     let rental;
     try {
-      rental = await provider.rentNumber(countryRecord.code, serviceRecord.slug);
+      // Le prix de vente FCFA est passé au provider pour que GrizzlySMS
+      // (en mode direct ou en fallback via SmartSmsProvider) puisse activer
+      // le garde-fou marge et refuser l'achat si le coût réel dépasse ce
+      // que l'on facture au client.
+      const sellingPriceFcfa = Number(pricing.price);
+      rental = await provider.rentNumber(countryRecord.code, serviceRecord.slug, sellingPriceFcfa);
     } catch (error) {
       if (error instanceof ProviderError) {
         // Le message brut du fournisseur ne sort JAMAIS d'ici : il nomme
@@ -204,7 +213,17 @@ export async function POST(request: Request) {
       // The number was already rented upstream before this transaction ran.
       // If we can't record/pay for it on our side, release it instead of
       // leaking a paid-for-nothing rental on the provider's books.
-      await provider.cancelOrder(rental.providerOrderId).catch(() => {});
+      //
+      // L'échec de cette libération est tracé, pas avalé : c'est le seul
+      // signal qu'un numéro a été payé chez le fournisseur sans contrepartie
+      // chez nous, et donc la seule façon de le rattraper à la main.
+      await provider.cancelOrder(rental.providerOrderId).catch((cancelError) => {
+        console.error(
+          `[POST /api/orders] libération de la location ${rental.providerOrderId} échouée ` +
+            `après échec d'enregistrement — numéro payé chez le fournisseur, non facturé au client.`,
+          cancelError
+        );
+      });
 
       if (error instanceof Error && error.message === "INSUFFICIENT_BALANCE") {
         return NextResponse.json(

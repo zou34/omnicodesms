@@ -23,6 +23,30 @@ export const USD_TO_FCFA = 600;
 /** Marge commerciale : 2,5 = prix de vente 2,5 × le coût converti. */
 export const PRICE_MARKUP = 2.5;
 
+/**
+ * Taux appliqué par le garde-fou marge (lib/providers/margin-guard.ts) pour
+ * convertir un coût fournisseur en FCFA au moment de l'achat.
+ *
+ * Les DEUX fournisseurs libellent leurs tarifs en dollars, pas en roubles —
+ * vérifié en direct contre les deux API :
+ *   - 5sim        GET /guest/products/france/any -> whatsapp 0.79, google 0.19
+ *   - GrizzlySMS  GET ?action=getPrices&country=78&service=go -> cost 0.19
+ *                 GET ?action=getBalance -> ACCESS_BALANCE:6.0048
+ * Ces montants n'ont de sens qu'en USD : 0,19 RUB vaudrait 0,002 $, soit cent
+ * fois moins que le prix plancher du marché.
+ *
+ * C'est donc bien USD_TO_FCFA qui s'applique — le même taux que celui ayant
+ * servi à calculer le prix de vente stocké au catalogue. Comparer un coût et
+ * un prix de vente construits avec deux taux différents n'aurait aucun sens.
+ *
+ * Surcharge possible via PROVIDER_USD_TO_FCFA (lue à l'exécution, pas
+ * seulement au build) pour suivre le dollar sans redéployer.
+ */
+export function getProviderUsdToFcfa(): number {
+  const envVal = Number(process.env.PROVIDER_USD_TO_FCFA);
+  return Number.isFinite(envVal) && envVal > 0 ? envVal : USD_TO_FCFA;
+}
+
 /** Pas d'arrondi, en FCFA. */
 const ROUNDING_STEP = 10;
 

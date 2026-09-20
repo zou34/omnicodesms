@@ -1,3 +1,4 @@
+import { assertPositiveMargin } from "@/lib/providers/margin-guard";
 import { SmsProvider } from "@/lib/providers/SmsProvider";
 import {
   ProviderError,
@@ -226,7 +227,10 @@ export class FiveSimProvider extends SmsProvider {
 
   async getBalance(): Promise<ProviderBalance> {
     const data = await this.request<{ balance: number }>("/user/profile");
-    return { amount: data.balance, currency: "RUB" };
+    // USD : c'est la devise du catalogue 5sim (GET /guest/products/france/any
+    // -> whatsapp 0.79), donc celle du solde qui le paie. Voir
+    // getProviderUsdToFcfa() dans lib/pricing.ts.
+    return { amount: data.balance, currency: "USD" };
   }
 
   async getPrices(country: string, service: string): Promise<ProviderPrice> {
@@ -249,10 +253,10 @@ export class FiveSimProvider extends SmsProvider {
       );
     }
 
-    return { country, service, price: entry.Price, currency: "RUB", available: entry.Qty };
+    return { country, service, price: entry.Price, currency: "USD", available: entry.Qty };
   }
 
-  async rentNumber(country: string, service: string): Promise<RentedNumber> {
+  async rentNumber(country: string, service: string, sellingPriceFcfa?: number): Promise<RentedNumber> {
     const slug = (await getFiveSimCountrySlugs())[country];
     if (!slug) {
       throw new ProviderError(`Pays non supporté par 5sim: ${country}.`, "UNSUPPORTED_COUNTRY_SERVICE");
@@ -262,13 +266,51 @@ export class FiveSimProvider extends SmsProvider {
       `/user/buy/activation/${slug}/any/${toFiveSimProduct(service)}`
     );
 
+    // Garde-fou marge, APRÈS l'achat et non avant — contrairement à
+    // GrizzlySMS, dont getNumber ne dit rien du prix. Deux raisons :
+    //
+    //  1. `order.price` est le montant réellement débité, tandis que le prix
+    //     public /guest/products est l'agrégat "any operator" : un plancher,
+    //     pas une garantie de ce qui sera facturé.
+    //  2. Un contrôle préalable imposerait un appel réseau de plus à chaque
+    //     achat. Le budget de la requête (maxDuration dans
+    //     app/api/orders/route.ts) doit déjà couvrir 5sim PUIS le repli
+    //     GrizzlySMS ; on ne l'allonge pas pour un chiffre moins fiable.
+    //
+    // Le prix du catalogue vient certes de 5sim, mais c'est un INSTANTANÉ pris
+    // par scripts/sync-catalog.ts : leurs tarifs bougent avec le stock, le
+    // nôtre non. « Notre catalogue suit leurs prix » n'est donc vrai qu'au
+    // moment de la synchro — d'où ce contrôle ici aussi.
+    try {
+      assertPositiveMargin({
+        provider: "FiveSimProvider",
+        country,
+        service,
+        costUsd: order.price,
+        sellingPriceFcfa,
+      });
+    } catch (error) {
+      // Rendre le numéro : 5sim recrédite une activation annulée tant
+      // qu'aucun SMS n'est arrivé. Sans cette libération, le garde-fou
+      // protégerait la marge en laissant fuir le solde qu'il vient de
+      // dépenser.
+      await this.cancelOrder(String(order.id)).catch((cancelError) => {
+        console.error(
+          `[FiveSimProvider] garde-fou marge: annulation de la commande ${order.id} échouée — ` +
+            `solde fournisseur immobilisé jusqu'à expiration.`,
+          cancelError
+        );
+      });
+      throw error;
+    }
+
     return {
       providerOrderId: String(order.id),
       phoneNumber: order.phone.startsWith("+") ? order.phone : `+${order.phone}`,
       country,
       service,
       price: order.price,
-      currency: "RUB",
+      currency: "USD",
       expiresAt: new Date(order.expires),
     };
   }

@@ -7,6 +7,7 @@ import {
   type RentedNumber,
   type SmsResult,
 } from "@/lib/providers/types";
+import { assertPositiveMargin } from "@/lib/providers/margin-guard";
 
 // https://api.grizzlysms.com/stubs/handler_api.php — the classic
 // "SMS-Activate protocol" shared by many virtual-number resellers: most
@@ -204,7 +205,9 @@ export class GrizzlySmsProvider extends SmsProvider {
       throw new ProviderError("Service temporairement indisponible.", "PROVIDER_UNAVAILABLE");
     }
 
-    return { amount: Number(match[1]), currency: "RUB" };
+    // USD, et non RUB : relevé en direct, ACCESS_BALANCE:6.0048 pour un compte
+    // crédité de 6 $. Voir getProviderUsdToFcfa() dans lib/pricing.ts.
+    return { amount: Number(match[1]), currency: "USD" };
   }
 
   async getPrices(country: string, service: string): Promise<ProviderPrice> {
@@ -229,10 +232,10 @@ export class GrizzlySmsProvider extends SmsProvider {
       );
     }
 
-    return { country, service, price: entry.cost, currency: "RUB", available: entry.count };
+    return { country, service, price: entry.cost, currency: "USD", available: entry.count };
   }
 
-  async rentNumber(country: string, service: string): Promise<RentedNumber> {
+  async rentNumber(country: string, service: string, sellingPriceFcfa?: number): Promise<RentedNumber> {
     const countryId = await resolveGrizzlyCountryId(country);
     const serviceCode = SERVICE_CODES[service];
     if (!countryId || !serviceCode) {
@@ -246,6 +249,17 @@ export class GrizzlySmsProvider extends SmsProvider {
     // phone — verified live) — fetch it separately so the caller still
     // gets an accurate RentedNumber.price.
     const priceInfo = await this.getPrices(country, service).catch(() => null);
+
+    // Garde-fou marge : getPrices est le seul chiffrage dont on dispose ici,
+    // et il est de toute façon déjà demandé ci-dessus — le contrôle ne coûte
+    // donc aucun appel réseau supplémentaire.
+    assertPositiveMargin({
+      provider: "GrizzlySmsProvider",
+      country,
+      service,
+      costUsd: priceInfo?.price ?? null,
+      sellingPriceFcfa,
+    });
 
     const raw = await this.requestRaw({ action: "getNumber", service: serviceCode, country: countryId });
 
@@ -270,7 +284,7 @@ export class GrizzlySmsProvider extends SmsProvider {
       country,
       service,
       price: priceInfo?.price ?? 0,
-      currency: "RUB",
+      currency: "USD",
       expiresAt: new Date(Date.now() + ACTIVATION_TTL_MS),
     };
   }

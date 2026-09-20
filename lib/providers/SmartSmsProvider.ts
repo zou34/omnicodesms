@@ -86,9 +86,12 @@ export class SmartSmsProvider extends SmsProvider {
     return this.withFallback((provider) => provider.getPrices(country, service), "getPrices");
   }
 
-  async rentNumber(country: string, service: string): Promise<RentedNumber> {
+  async rentNumber(country: string, service: string, sellingPriceFcfa?: number): Promise<RentedNumber> {
     try {
-      const rental = await this.fiveSim.rentNumber(country, service);
+      // Le prix de vente est transmis aux DEUX fournisseurs : 5sim est le
+      // primaire, c'est donc lui qui sert la quasi-totalité des achats. Ne
+      // le passer qu'au repli laissait le chemin principal sans garde-fou.
+      const rental = await this.fiveSim.rentNumber(country, service, sellingPriceFcfa);
       return { ...rental, providerOrderId: encodeOrderId("5sim", rental.providerOrderId) };
     } catch (error) {
       if (!(error instanceof ProviderError)) throw error;
@@ -96,7 +99,7 @@ export class SmartSmsProvider extends SmsProvider {
       console.warn(`[SmartSmsProvider] 5sim rentNumber failed (${error.code}), falling back to GrizzlySMS`);
 
       try {
-        const rental = await this.grizzly.rentNumber(country, service);
+        const rental = await this.grizzly.rentNumber(country, service, sellingPriceFcfa);
         return { ...rental, providerOrderId: encodeOrderId("grizzly", rental.providerOrderId) };
       } catch (fallbackError) {
         if (!(fallbackError instanceof ProviderError)) throw fallbackError;
