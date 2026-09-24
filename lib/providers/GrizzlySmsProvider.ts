@@ -21,7 +21,18 @@ import { assertPositiveMargin } from "@/lib/providers/margin-guard";
 // getStatus/setStatus's response text and the ~20min activation TTL are
 // per GrizzlySMS's published docs, not live-verified here — spending real
 // balance to buy a number wasn't part of this chantier.
-const BASE_URL = "https://api.grizzlysms.com/stubs/handler_api.php";
+export const BASE_URL = "https://api.grizzlysms.com/stubs/handler_api.php";
+
+/**
+ * Clé API nettoyée. Une variable collée dans le tableau de bord Vercel avec
+ * des guillemets, un espace ou un retour à la ligne donnait une clé invalide :
+ * GrizzlySMS répond alors "BAD_KEY" (HTTP 200) à chaque appel, ce qui se
+ * traduisait en "Service temporairement indisponible" côté client.
+ */
+export function getGrizzlyApiKey(): string | undefined {
+  const key = process.env.GRIZZLY_API_KEY?.trim().replace(/^["']|["']$/g, "").trim();
+  return key || undefined;
+}
 
 // GrizzlySMS identifie ses pays par un entier et ne publie que des noms
 // anglais (GET ?action=getCountries — 206 pays), jamais de code ISO. La
@@ -92,7 +103,7 @@ let countryIdsByName: Map<string, string> | null = null;
 async function loadCountryIdsByName(): Promise<Map<string, string> | null> {
   if (countryIdsByName) return countryIdsByName;
 
-  const apiKey = process.env.GRIZZLY_API_KEY;
+  const apiKey = getGrizzlyApiKey();
   if (!apiKey) return null;
 
   try {
@@ -181,7 +192,7 @@ export class GrizzlySmsProvider extends SmsProvider {
   readonly name = "grizzly";
 
   private async requestRaw(params: Record<string, string>): Promise<string> {
-    const apiKey = process.env.GRIZZLY_API_KEY;
+    const apiKey = getGrizzlyApiKey();
     if (!apiKey) {
       throw new ProviderError("Service temporairement indisponible.", "PROVIDER_UNAVAILABLE");
     }
@@ -207,7 +218,12 @@ export class GrizzlySmsProvider extends SmsProvider {
       throw new ProviderError("Service temporairement indisponible.", "PROVIDER_UNAVAILABLE");
     }
 
-    return raw.trim();
+    const body = raw.trim();
+    if (body === "BAD_KEY" || body.startsWith("BANNED") || body === "BAD_ACTION") {
+      console.error(`[GrizzlySmsProvider] requête ${params.action} rejetée par GrizzlySMS : ${body}`);
+      throw new ProviderError("Service temporairement indisponible.", "PROVIDER_UNAVAILABLE");
+    }
+    return body;
   }
 
   private async requestJson<T>(params: Record<string, string>): Promise<T> {
