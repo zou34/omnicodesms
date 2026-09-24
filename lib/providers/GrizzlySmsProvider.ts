@@ -43,17 +43,37 @@ const COUNTRY_NAME_ALIASES: Record<string, string> = {
   US: "USA", // et non "USA (2)", qui est un second pool distinct
 };
 
-// Filet de sécurité hors ligne, si leur catalogue des pays est injoignable.
-// Confirmed via GET ?action=getCountries against the real API.
-const FALLBACK_COUNTRY_IDS: Record<string, string> = {
-  ID: "6",
-  GB: "16",
-  NG: "19",
-  CI: "27",
-  DE: "43",
-  BR: "73",
-  FR: "78",
-  US: "187",
+// Table ISO -> id GrizzlySMS, générée le 2026-09-24 depuis GET ?action=getCountries
+// (même rapprochement de noms que loadCountryIdsByName ci-dessous). Consultée EN
+// PREMIER : en production, l'appel getCountries au démarrage de chaque instance
+// serverless pouvait échouer ou expirer, et le repli ne connaissait alors que 8
+// pays — d'où les UNSUPPORTED_COUNTRY_SERVICE (ex. twitter/VN). La résolution
+// dynamique ne sert plus qu'aux pays absents de cette table.
+const STATIC_COUNTRY_IDS: Record<string, string> = {
+  AD: "1062", AE: "95", AF: "74", AI: "181", AL: "155", AM: "148", AO: "76", AR: "39",
+  AS: "10161", AT: "50", AU: "175", AW: "179", AZ: "35", BB: "118", BD: "60", BE: "82",
+  BF: "152", BG: "83", BH: "145", BI: "119", BJ: "120", BM: "1003", BO: "92", BR: "73",
+  BS: "122", BT: "158", BW: "123", BY: "51", BZ: "124", CA: "36", CF: "125", CH: "173",
+  CI: "27", CL: "151", CM: "41", CN: "3", CO: "33", CR: "93", CU: "113", CV: "186",
+  CY: "77", CZ: "63", DE: "43", DJ: "168", DK: "172", DM: "126", DO: "109", DZ: "58",
+  EC: "105", EE: "34", EG: "21", ER: "176", ES: "56", ET: "71", FI: "163", FJ: "189",
+  FR: "78", GA: "154", GB: "16", GD: "127", GE: "128", GF: "162", GH: "38", GI: "201",
+  GL: "1008", GM: "28", GN: "68", GP: "160", GQ: "167", GR: "129", GT: "94", GW: "130",
+  GY: "131", HK: "14", HN: "88", HR: "45", HT: "26", HU: "84", ID: "6", IE: "23",
+  IL: "13", IN: "22", IQ: "47", IR: "10016", IS: "132", IT: "86", JM: "103", JO: "116",
+  JP: "182", KE: "8", KG: "11", KH: "24", KM: "133", KR: "10350", KW: "100", KY: "170",
+  KZ: "2", LA: "25", LB: "153", LI: "10348", LK: "64", LR: "135", LS: "136", LT: "44",
+  LU: "165", LV: "49", LY: "102", MA: "37", MC: "144", MD: "85", ME: "171", MG: "17",
+  ML: "69", MN: "72", MQ: "1011", MR: "114", MS: "180", MT: "199", MU: "157", MV: "159",
+  MW: "137", MX: "54", MY: "7", MZ: "80", NC: "185", NE: "139", NG: "19", NI: "90",
+  NL: "48", NO: "174", NP: "81", NU: "204", NZ: "67", OM: "107", PA: "112", PE: "65",
+  PF: "1012", PH: "4", PK: "66", PL: "15", PR: "97", PT: "117", PY: "87", QA: "111",
+  RE: "146", RO: "32", RS: "29", RW: "140", SA: "53", SC: "184", SE: "46", SG: "10351",
+  SI: "59", SK: "141", SL: "115", SN: "61", SO: "149", SR: "142", SS: "177", SV: "101",
+  SX: "10349", SY: "110", TD: "42", TG: "99", TH: "52", TJ: "143", TL: "91", TM: "161",
+  TN: "89", TO: "10227", TW: "55", TZ: "9", UA: "1", UG: "75", US: "187", UY: "156",
+  UZ: "40", VE: "70", VN: "10", VU: "1007", WS: "10231", XK: "203", YE: "30", ZA: "31",
+  ZM: "147", ZW: "96",
 };
 
 function normalizeCountryName(value: string): string {
@@ -101,8 +121,11 @@ async function loadCountryIdsByName(): Promise<Map<string, string> | null> {
 
 /** Résout un code ISO 3166-1 alpha-2 en identifiant de pays GrizzlySMS. */
 export async function resolveGrizzlyCountryId(isoCode: string): Promise<string | undefined> {
+  const staticId = STATIC_COUNTRY_IDS[isoCode];
+  if (staticId) return staticId;
+
   const byName = await loadCountryIdsByName();
-  if (!byName) return FALLBACK_COUNTRY_IDS[isoCode];
+  if (!byName) return undefined;
 
   const alias = COUNTRY_NAME_ALIASES[isoCode];
   if (alias) {
@@ -121,11 +144,11 @@ export async function resolveGrizzlyCountryId(isoCode: string): Promise<string |
     if (id) return id;
   }
 
-  return FALLBACK_COUNTRY_IDS[isoCode];
+  return undefined;
 }
 
 // Confirmed via GET ?action=getServicesList against the real API.
-const SERVICE_CODES: Record<string, string> = {
+export const SERVICE_CODES: Record<string, string> = {
   whatsapp: "wa",
   telegram: "tg",
   facebook: "fb",
@@ -248,7 +271,11 @@ export class GrizzlySmsProvider extends SmsProvider {
     // getNumber's success response carries no price field (just the id and
     // phone — verified live) — fetch it separately so the caller still
     // gets an accurate RentedNumber.price.
-    const priceInfo = await this.getPrices(country, service).catch(() => null);
+    // Une seconde tentative : un simple hoquet réseau ne doit pas suffire à
+    // faire refuser la vente par le garde-fou marge ci-dessous.
+    const priceInfo = await this.getPrices(country, service)
+      .catch(() => this.getPrices(country, service))
+      .catch(() => null);
 
     // Garde-fou marge : getPrices est le seul chiffrage dont on dispose ici,
     // et il est de toute façon déjà demandé ci-dessus — le contrôle ne coûte

@@ -47,8 +47,10 @@ export function getSmsProvider(): SmsProvider {
   const hasFiveSim = Boolean(process.env.SIM5_API_KEY);
   const hasGrizzly = Boolean(process.env.GRIZZLY_API_KEY);
 
+  // Dès qu'une clé GrizzlySMS existe, "smart" : il achète exclusivement chez
+  // GrizzlySMS tout en sachant clôturer les anciennes commandes "5sim:...".
   const defaultProviderName: ProviderName | undefined =
-    hasFiveSim && hasGrizzly ? "smart" : hasFiveSim ? "5sim" : hasGrizzly ? "grizzly" : undefined;
+    hasGrizzly ? "smart" : hasFiveSim ? "5sim" : undefined;
   const providerName =
     (process.env.SMS_PROVIDER as ProviderName | undefined) || defaultProviderName;
 
