@@ -1,7 +1,10 @@
 /**
  * Règle de tarification du catalogue — source unique de vérité.
  *
- *   Prix de vente (FCFA) = ⌈ coût fournisseur (USD) × USD_TO_FCFA × PRICE_MARKUP / 10 ⌉ × 10
+ *   Prix de vente (FCFA) = ⌈ (coût réf. (USD) × USD_TO_FCFA × PRICE_MARKUP + FIXED_MARGIN_FCFA) / 10 ⌉ × 10
+ *
+ * Le coût de référence est le prix médian du stock (voir referenceCostUsd),
+ * et l'achat est plafonné chez le fournisseur par maxProviderCostUsd().
  *
  * Soit, avec les constantes ci-dessous : coût USD × 600 × 2,5, arrondi à la
  * dizaine de FCFA SUPÉRIEURE (314 -> 320, 1352 -> 1360). L'arrondi vers le
@@ -73,10 +76,60 @@ export function computeSellingPriceFcfa(
   // L'arithmétique flottante donne 210.00000000000003 pour 0,14 × 600 × 2,5.
   // Sans cette normalisation, l'arrondi supérieur facturerait 220 au lieu de
   // 210 : un pas entier de trop, sur un prix pourtant déjà rond.
-  const raw = Math.round(costUsd * usdToFcfa * markup * 1e6) / 1e6;
-  const rounded = Math.ceil(raw / ROUNDING_STEP) * ROUNDING_STEP;
+  const raw = Math.round((costUsd * usdToFcfa * markup + FIXED_MARGIN_FCFA) * 1e6) / 1e6;
+  return Math.ceil(raw / ROUNDING_STEP) * ROUNDING_STEP;
+}
 
-  // Un coût nul ou quasi nul ne doit jamais produire un prix de 0 FCFA : ce
-  // serait un numéro offert. Plancher à un pas d'arrondi.
-  return Math.max(ROUNDING_STEP, rounded);
+/**
+ * Marge fixe ajoutée à chaque prix de vente. Couvre les frais de passerelle
+ * de paiement et garantit qu'aucun numéro "à 0,01 $" ne se vende à perte.
+ */
+export const FIXED_MARGIN_FCFA = 50;
+
+/**
+ * Marge brute minimale garantie à l'achat : le coût fournisseur ne peut
+ * jamais dépasser prix de vente / 1,25 (soit ≥ 20 % de marge).
+ */
+export const MIN_MARGIN_RATIO = 1.25;
+
+/**
+ * Plafond de coût fournisseur (USD) acceptable pour un prix de vente donné.
+ *
+ * Transmis tel quel à GrizzlySMS (`getNumber&maxPrice=`) : c'est le
+ * fournisseur lui-même qui refuse tout numéro plus cher, au moment exact de
+ * l'achat — aucune dérive de prix entre deux synchros ne peut donc produire
+ * une vente à perte. Avec la formule ci-dessus, ce plafond vaut ~2 × le coût
+ * de référence : les ventes continuent même si le fournisseur double ses prix.
+ */
+export function maxProviderCostUsd(sellingPriceFcfa: number): number {
+  const ceiling = sellingPriceFcfa / (getProviderUsdToFcfa() * MIN_MARGIN_RATIO);
+  // Arrondi au centime INFÉRIEUR : jamais au-dessus du plafond.
+  return Math.floor(ceiling * 100) / 100;
+}
+
+/**
+ * Coût de référence d'un couple pays/service à partir de la répartition de
+ * son stock par palier de prix ({ "0.19": 40, "0.59": 295 }).
+ *
+ * Le prix plancher affiché par getPrices ne concerne souvent qu'une poignée
+ * de numéros (ex. Google/France : 40 à 0,19 $, contre des centaines à
+ * 0,28–0,59 $) : tarifer dessus rendait le catalogue invendable dès que ces
+ * quelques numéros étaient partis. On prend donc le palier MÉDIAN — celui où
+ * l'on atteint la moitié du stock, par prix croissant.
+ */
+export function referenceCostUsd(tiers: Record<string, number>): number | null {
+  const sorted = Object.entries(tiers)
+    .map(([price, count]) => ({ price: Number(price), count: Number(count) }))
+    .filter((t) => Number.isFinite(t.price) && t.price > 0 && t.count > 0)
+    .sort((a, b) => a.price - b.price);
+
+  const total = sorted.reduce((sum, t) => sum + t.count, 0);
+  if (total === 0) return null;
+
+  let cumulative = 0;
+  for (const tier of sorted) {
+    cumulative += tier.count;
+    if (cumulative >= total / 2) return tier.price;
+  }
+  return sorted[sorted.length - 1].price;
 }

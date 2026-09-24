@@ -7,6 +7,7 @@ import {
   type RentedNumber,
   type SmsResult,
 } from "@/lib/providers/types";
+import { maxProviderCostUsd } from "@/lib/pricing";
 import { assertPositiveMargin } from "@/lib/providers/margin-guard";
 
 // https://api.grizzlysms.com/stubs/handler_api.php — the classic
@@ -268,33 +269,39 @@ export class GrizzlySmsProvider extends SmsProvider {
       );
     }
 
-    // getNumber's success response carries no price field (just the id and
-    // phone — verified live) — fetch it separately so the caller still
-    // gets an accurate RentedNumber.price.
-    // Une seconde tentative : un simple hoquet réseau ne doit pas suffire à
-    // faire refuser la vente par le garde-fou marge ci-dessous.
-    const priceInfo = await this.getPrices(country, service)
-      .catch(() => this.getPrices(country, service))
-      .catch(() => null);
+    // Garde-fou marge appliqué PAR GRIZZLYSMS LUI-MÊME : `maxPrice` lui
+    // interdit de nous vendre un numéro au-dessus du plafond rentable. L'ancien
+    // contrôle comparait notre prix au plancher de getPrices (ex. 0,19 $ pour
+    // 40 numéros), alors que getNumber facturait en réalité jusqu'à 0,59 $.
+    const params: Record<string, string> = { action: "getNumber", service: serviceCode, country: countryId };
+    let maxPriceUsd: number | null = null;
+    if (sellingPriceFcfa !== undefined) {
+      maxPriceUsd = maxProviderCostUsd(sellingPriceFcfa);
+      assertPositiveMargin({
+        provider: "GrizzlySmsProvider",
+        country,
+        service,
+        costUsd: maxPriceUsd,
+        sellingPriceFcfa,
+      });
+      params.maxPrice = maxPriceUsd.toFixed(2);
+    }
 
-    // Garde-fou marge : getPrices est le seul chiffrage dont on dispose ici,
-    // et il est de toute façon déjà demandé ci-dessus — le contrôle ne coûte
-    // donc aucun appel réseau supplémentaire.
-    assertPositiveMargin({
-      provider: "GrizzlySmsProvider",
-      country,
-      service,
-      costUsd: priceInfo?.price ?? null,
-      sellingPriceFcfa,
-    });
-
-    const raw = await this.requestRaw({ action: "getNumber", service: serviceCode, country: countryId });
+    const raw = await this.requestRaw(params);
 
     if (raw === "NO_BALANCE") {
       throw new ProviderError("Solde insuffisant sur le compte fournisseur.", "INSUFFICIENT_BALANCE");
     }
     if (raw === "NO_NUMBERS") {
       throw new ProviderError("Plus de numéro disponible pour ce pays/service.", "NO_NUMBERS_AVAILABLE");
+    }
+    // Vérifié en direct : "WRONG_MAX_PRICE:0.190000" quand aucun numéro n'existe
+    // sous notre plafond. Rien n'est débité ; le catalogue doit être resynchronisé.
+    if (raw.startsWith("WRONG_MAX_PRICE")) {
+      console.warn(
+        `[GrizzlySmsProvider] ${service}/${country} : plafond ${maxPriceUsd} USD sous le prix minimal (${raw}) — lancez npm run sync-catalog`
+      );
+      throw new ProviderError("Aucun numéro sous le plafond de rentabilité.", "NO_NUMBERS_AVAILABLE");
     }
 
     const match = raw.match(/^ACCESS_NUMBER:(\d+):(.+)$/);
@@ -310,7 +317,8 @@ export class GrizzlySmsProvider extends SmsProvider {
       phoneNumber: phone.startsWith("+") ? phone : `+${phone}`,
       country,
       service,
-      price: priceInfo?.price ?? 0,
+      // getNumber ne renvoie pas le prix facturé : le plafond en est la borne haute.
+      price: maxPriceUsd ?? 0,
       currency: "USD",
       expiresAt: new Date(Date.now() + ACTIVATION_TTL_MS),
     };
