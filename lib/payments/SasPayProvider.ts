@@ -352,15 +352,18 @@ export class SasPayProvider extends PaymentProvider {
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
       } catch (error) {
+        // Levée et non `return null` : la route répond alors 500 et SasPay
+        // relance. Un null ferait répondre 200 et perdrait définitivement ce
+        // paiement, pour un simple incident passager.
         console.error("[SasPayProvider] échec du rapprochement par listage des sessions", error);
-        return null;
+        throw error;
       }
 
       if (!response.ok) {
         console.error(
           `[SasPayProvider] listage des sessions refusé (HTTP ${response.status})`
         );
-        return null;
+        throw new Error(`Listage des sessions SasPay refusé (HTTP ${response.status})`);
       }
 
       const parsed = sessionListSchema.safeParse(

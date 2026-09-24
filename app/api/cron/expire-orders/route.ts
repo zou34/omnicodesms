@@ -85,8 +85,11 @@ export async function GET(request: Request) {
           } catch (error) {
             // Commande inconnue du fournisseur (purgée de son côté) : la date
             // d'expiration est passée et aucun code n'a jamais été enregistré
-            // chez nous, on tranche en faveur du client.
-            if (!(error instanceof ProviderError)) throw error;
+            // chez nous, on tranche en faveur du client. Toute AUTRE erreur
+            // (fournisseur injoignable) ne dit rien de l'issue réelle : on ne
+            // rembourse pas un SMS peut-être livré, la commande sera reprise
+            // au passage suivant.
+            if (!(error instanceof ProviderError) || error.code !== "ORDER_NOT_FOUND") throw error;
           }
         }
 
