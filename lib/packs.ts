@@ -23,16 +23,12 @@ export interface RechargeAmount {
 
 export const RECHARGE_AMOUNTS: RechargeAmount[] = [
   {
-    id: "recharge-500",
-    priceFcfa: 500,
-  },
-  {
     id: "recharge-1000",
     priceFcfa: 1000,
   },
   {
-    id: "recharge-3000",
-    priceFcfa: 3000,
+    id: "recharge-2500",
+    priceFcfa: 2500,
   },
   {
     id: "recharge-5000",

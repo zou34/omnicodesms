@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { ActiveOrders } from "@/components/dashboard/active-orders";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
@@ -49,8 +49,25 @@ export function DashboardShell({
     setBalance((prev) => Math.max(0, prev - Number(order.price)));
   }, []);
 
+  // Commandes dont le remboursement a déjà été reflété à l'écran : l'updater
+  // de setOrders peut être rejoué (StrictMode), le crédit ne doit pas l'être.
+  const refundedOrderIds = useRef(new Set<string>());
+
   const handleOrderUpdated = useCallback((update: Partial<OrderVM> & { id: string }) => {
-    setOrders((prev) => prev.map((order) => (order.id === update.id ? { ...order, ...update } : order)));
+    setOrders((prev) => {
+      const before = prev.find((order) => order.id === update.id);
+      // Commande sortie de PENDING sans SMS : le serveur a déjà recrédité le
+      // solde (lib/orders/settle.ts), on le reflète tout de suite à l'écran.
+      if (
+        before?.status === "PENDING" &&
+        (update.status === "CANCELLED" || update.status === "EXPIRED") &&
+        !refundedOrderIds.current.has(before.id)
+      ) {
+        refundedOrderIds.current.add(before.id);
+        setBalance((balance) => balance + Number(before.price));
+      }
+      return prev.map((order) => (order.id === update.id ? { ...order, ...update } : order));
+    });
   }, []);
 
   return (

@@ -328,6 +328,14 @@ export class GrizzlySmsProvider extends SmsProvider {
 
     const [, id, phone] = match;
 
+    // setStatus=1 : "numéro prêt à recevoir le SMS", recommandé par le
+    // protocole après getNumber — certains opérateurs n'acheminent le SMS
+    // qu'après ce signal. Au mieux-effort : son échec ne doit jamais faire
+    // perdre un numéro déjà payé.
+    await this.requestRaw({ action: "setStatus", id, status: "1" }).catch((error) => {
+      console.warn(`[GrizzlySmsProvider] setStatus=1 échoué pour ${id}`, error);
+    });
+
     return {
       providerOrderId: id,
       phoneNumber: phone.startsWith("+") ? phone : `+${phone}`,

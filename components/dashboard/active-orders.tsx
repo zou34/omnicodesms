@@ -104,10 +104,16 @@ function OrderCard({ order }: { order: OrderVM }) {
 
       <div className="mt-3 border-t border-slate-800 pt-3">
         {order.status === "PENDING" && (
-          <span className="flex items-center gap-2 whitespace-nowrap text-sm text-amber-400">
-            <Clock className="h-4 w-4 shrink-0 animate-pulse" />
-            En attente du SMS...
-          </span>
+          <div>
+            <span className="flex items-center gap-2 whitespace-nowrap text-sm text-amber-400">
+              <Clock className="h-4 w-4 shrink-0 animate-pulse" />
+              En attente du SMS...
+            </span>
+            <p className="mt-2 text-xs leading-relaxed text-slate-400">
+              La réception du SMS peut prendre quelques minutes selon le service. En cas de
+              non-réception, la commande sera annulée et vous serez intégralement remboursé.
+            </p>
+          </div>
         )}
 
         {order.status === "COMPLETED" && order.smsCode && (
@@ -128,7 +134,8 @@ function OrderCard({ order }: { order: OrderVM }) {
 
         {(order.status === "CANCELLED" || order.status === "EXPIRED") && (
           <p className="text-sm text-slate-500">
-            {order.status === "CANCELLED" ? "Commande annulée." : "Expirée sans réception de SMS."}
+            {order.status === "CANCELLED" ? "Commande annulée" : "Expirée sans réception de SMS"} — montant
+            intégralement remboursé sur votre solde.
           </p>
         )}
       </div>

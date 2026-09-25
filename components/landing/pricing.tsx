@@ -23,7 +23,7 @@ export function Pricing() {
           </p>
         </div>
 
-        <div className="mt-16 grid grid-cols-1 items-start gap-6 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-16 grid grid-cols-1 items-start gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {RECHARGE_AMOUNTS.map((amount) => (
             <div
               key={amount.id}

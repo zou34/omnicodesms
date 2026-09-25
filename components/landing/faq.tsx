@@ -40,7 +40,7 @@ const QUESTIONS = [
   {
     question: "Mon solde expire-t-il ?",
     answer:
-      "Jamais. Le crédit rechargé reste acquis sans limite de durée et sans frais de tenue de compte. Vous pouvez recharger 500 FCFA aujourd'hui et les utiliser dans six mois.",
+      "Jamais. Le crédit rechargé reste acquis sans limite de durée et sans frais de tenue de compte. Vous pouvez recharger 1 000 FCFA aujourd'hui et les utiliser dans six mois.",
   },
   {
     question: "Puis-je choisir le pays du numéro ?",
