@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   LayoutDashboard,
   Menu,
+  MessageSquare,
   Phone,
   Receipt,
   Settings,
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/admin/users", label: "Utilisateurs", icon: Users },
   { href: "/admin/transactions", label: "Transactions", icon: Receipt },
   { href: "/admin/numbers", label: "Numéros Actifs", icon: Phone },
+  { href: "/admin/messages", label: "Messages", icon: MessageSquare },
   { href: "/admin/settings", label: "Paramètres", icon: Settings },
 ] as const;
 

@@ -242,3 +242,43 @@ export async function getOrdersPage(page: number): Promise<PaginatedOrders> {
     totalCount,
   };
 }
+
+export interface ContactMessageRow {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface PaginatedContactMessages {
+  messages: ContactMessageRow[];
+  page: number;
+  totalPages: number;
+  totalCount: number;
+}
+
+export async function getContactMessagesPage(page: number): Promise<PaginatedContactMessages> {
+  const safePage = Math.max(1, page);
+  const [messages, totalCount] = await Promise.all([
+    prisma.contactMessage.findMany({
+      orderBy: { createdAt: "desc" },
+      skip: (safePage - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.contactMessage.count(),
+  ]);
+
+  return {
+    messages: messages.map((message) => ({
+      id: message.id,
+      name: message.name,
+      email: message.email,
+      message: message.message,
+      createdAt: message.createdAt.toISOString(),
+    })),
+    page: safePage,
+    totalPages: Math.max(1, Math.ceil(totalCount / PAGE_SIZE)),
+    totalCount,
+  };
+}
