@@ -1,14 +1,7 @@
-<!-- "maskable" purpose: Android crops adaptive icons to a circle/squircle,
-     discarding roughly the outer 20%. Background fills the full canvas
-     (no transparent corners after cropping) and the glyph sits within the
-     safe zone so it survives the crop. -->
+<!-- "maskable" : Android recadre en cercle/squircle en coupant ~20 % des bords.
+     Fond plein bord à bord, glyphe réduit à 80 % dans la zone de sécurité. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1e3a8a" />
-      <stop offset="1" stop-color="#2563eb" />
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" fill="url(#g)" />
-  <rect x="216" y="176" width="80" height="180" rx="18" fill="white" />
+  <defs><linearGradient id="bubble" x1="96" y1="112" x2="416" y2="426" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient><linearGradient id="bolt" x1="192" y1="136" x2="320" y2="346" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fde047"/><stop offset="1" stop-color="#f59e0b"/></linearGradient></defs>
+  <rect width="512" height="512" fill="#0f172a"/>
+  <g transform="translate(51.2 51.2) scale(0.8)"><path d="M150 112H362A54 54 0 0 1 416 166V314A54 54 0 0 1 362 368H222L150 426V368A54 54 0 0 1 96 314V166A54 54 0 0 1 150 112Z" fill="url(#bubble)"/><path d="M286 136L192 264H248L226 346L320 212H264Z" fill="url(#bolt)" stroke="#0f172a" stroke-width="10" stroke-linejoin="round" paint-order="stroke"/></g>
 </svg>

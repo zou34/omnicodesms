@@ -203,3 +203,15 @@ model Transaction {
   @@index([userId])
   @@index([orderId])
 }
+
+// Messages reçus via le formulaire /contact. Conservés en base : la
+// notification e-mail (CONTACT_EMAIL) n'est qu'un relais au mieux-effort.
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

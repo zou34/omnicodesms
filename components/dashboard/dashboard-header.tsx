@@ -2,6 +2,7 @@
 
 import { PlusCircle, Wallet } from "lucide-react";
 
+import { LogoMark } from "@/components/brand/logo-mark";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { InstallPwaButton } from "@/components/pwa/install-pwa-button";
 
@@ -21,7 +22,11 @@ export function DashboardHeader({
   return (
     <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4 sm:px-6">
-        <span className="text-lg font-semibold tracking-tight text-white">FlashCodeSMS</span>
+        {/* Sur mobile, le logo seul : la barre porte déjà solde et boutons. */}
+        <span className="flex items-center gap-2 text-lg font-semibold tracking-tight text-white">
+          <LogoMark withBackground className="h-8 w-8 shrink-0" />
+          <span className="hidden sm:inline">FlashCodeSMS</span>
+        </span>
 
         <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4">
           <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-400 sm:gap-2 sm:px-4 sm:text-sm">

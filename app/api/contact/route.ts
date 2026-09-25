@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { getEmailProvider } from "@/lib/email";
+import { prisma } from "@/lib/prisma";
 import { getClientIp, rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const CONTACT_LIMIT = 5;
@@ -9,7 +10,7 @@ const CONTACT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 const contactSchema = z.object({
   name: z.string().trim().min(1, "Nom requis.").max(200),
-  email: z.string().email("Adresse email invalide."),
+  email: z.string().trim().email("Adresse email invalide.").max(320),
   message: z.string().trim().min(1, "Message requis.").max(5000),
 });
 
@@ -38,13 +39,12 @@ export async function POST(request: Request) {
 
     const { name, email, message } = parsed.data;
 
-    // No ContactMessage table yet — a clean, structured server-side log is
-    // the documented baseline (see docs/AUDIT.md); still notify a real
-    // inbox via the same EmailProvider used for password resets when
-    // CONTACT_EMAIL is configured, best-effort so a delivery hiccup never
-    // fails the user's submission.
-    console.log(`[Contact] ${name} <${email}>: ${message}`);
+    // La base est la source de vérité : si l'écriture échoue, le visiteur
+    // reçoit une erreur (catch ci-dessous) plutôt qu'un faux "message envoyé".
+    await prisma.contactMessage.create({ data: { name, email, message } });
 
+    // Notification e-mail en plus, au mieux-effort : le message est déjà
+    // enregistré, un souci de livraison ne doit pas faire échouer l'envoi.
     const contactEmail = process.env.CONTACT_EMAIL;
     if (contactEmail) {
       await getEmailProvider()

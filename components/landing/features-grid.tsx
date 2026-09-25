@@ -28,15 +28,15 @@ function WorldwideMockup() {
   );
 }
 
-function PriceReceiptMockup() {
+function PriceReceiptMockup({ minPriceFcfa }: { minPriceFcfa: number | null }) {
   return (
     <div className="flex h-24 items-center justify-center">
       <div className="w-32 rounded-lg bg-white p-3 text-center shadow-md ring-1 ring-slate-100">
-        <p className="text-[10px] text-slate-400">Numéro US</p>
-        <p className="text-xs text-slate-400 line-through">500 FCFA</p>
+        <p className="text-[10px] text-slate-400">Numéros dès</p>
         <p className="border-t border-dashed border-slate-200 pt-1 text-lg font-extrabold text-emerald-600">
-          300 FCFA
+          {minPriceFcfa !== null ? `${minPriceFcfa.toLocaleString("fr-FR")} FCFA` : "Prix mini"}
         </p>
+        <p className="text-[10px] text-slate-400">Payé au prix réel</p>
       </div>
     </div>
   );
@@ -89,7 +89,17 @@ function SupportGaugeMockup() {
   );
 }
 
-const FEATURES = [
+interface MockupProps {
+  minPriceFcfa: number | null;
+}
+
+interface Feature {
+  title: string;
+  description: string | ((props: MockupProps) => string);
+  Mockup: (props: MockupProps) => JSX.Element;
+}
+
+const FEATURES: Feature[] = [
   {
     title: "Activation Instantanée",
     description: "Recevez votre numéro virtuel en moins de 3 secondes.",
@@ -102,7 +112,12 @@ const FEATURES = [
   },
   {
     title: "Prix Abordables",
-    description: "À partir de 300 FCFA seulement.",
+    // Plancher réel du catalogue, lu en base par app/page.tsx : jamais un
+    // prix codé en dur qui deviendrait faux à la prochaine synchro.
+    description: ({ minPriceFcfa }) =>
+      minPriceFcfa !== null
+        ? `Des numéros de qualité à partir de ${minPriceFcfa.toLocaleString("fr-FR")} FCFA seulement.`
+        : "Des numéros de qualité au meilleur prix, payés au tarif réel.",
     Mockup: PriceReceiptMockup,
   },
   {
@@ -120,9 +135,9 @@ const FEATURES = [
     description: "Équipe disponible à tout moment.",
     Mockup: SupportGaugeMockup,
   },
-] as const;
+];
 
-export function FeaturesGrid() {
+export function FeaturesGrid({ minPriceFcfa }: MockupProps) {
   return (
     <section className="bg-white px-6 py-24 sm:px-10">
       <div className="mx-auto max-w-6xl">
@@ -141,9 +156,10 @@ export function FeaturesGrid() {
               key={title}
               className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition hover:shadow-md"
             >
-              <Mockup />
+              <Mockup minPriceFcfa={minPriceFcfa} />
               <h3 className="mt-5 text-lg font-bold text-slate-900">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">{description}</p>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">{typeof description === "function" ? description({ minPriceFcfa }) : description}
+              </p>
             </div>
           ))}
         </div>

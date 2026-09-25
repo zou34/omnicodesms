@@ -1,10 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1e3a8a" />
-      <stop offset="1" stop-color="#2563eb" />
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#g)" />
-  <rect x="196" y="120" width="120" height="272" rx="26" fill="white" />
+  <defs><linearGradient id="bubble" x1="96" y1="112" x2="416" y2="426" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient><linearGradient id="bolt" x1="192" y1="136" x2="320" y2="346" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fde047"/><stop offset="1" stop-color="#f59e0b"/></linearGradient></defs>
+  <rect width="512" height="512" rx="112" fill="#0f172a"/>
+  <path d="M150 112H362A54 54 0 0 1 416 166V314A54 54 0 0 1 362 368H222L150 426V368A54 54 0 0 1 96 314V166A54 54 0 0 1 150 112Z" fill="url(#bubble)"/><path d="M286 136L192 264H248L226 346L320 212H264Z" fill="url(#bolt)" stroke="#0f172a" stroke-width="10" stroke-linejoin="round" paint-order="stroke"/>
 </svg>

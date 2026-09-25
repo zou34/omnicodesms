@@ -1,6 +1,9 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
+import { LogoMark } from "@/components/brand/logo-mark";
+import { SplashScreen } from "@/components/brand/splash-screen";
+
 import { Faq } from "@/components/landing/faq";
 import { FeaturesGrid } from "@/components/landing/features-grid";
 import { FinalCta } from "@/components/landing/final-cta";
@@ -14,10 +17,33 @@ import { Testimonials } from "@/components/landing/testimonials";
 import { WhyChooseUs } from "@/components/landing/why-choose-us";
 import { InstallPwaButton } from "@/components/pwa/install-pwa-button";
 import { GlowingButton } from "@/components/ui/glowing-button";
+import { prisma } from "@/lib/prisma";
 
-export default function Home() {
+// Le prix plancher affiché ("à partir de…") suit le catalogue, resynchronisé
+// régulièrement : la page est régénérée au plus toutes les heures.
+export const revalidate = 3600;
+
+async function getMinPriceFcfa(): Promise<number | null> {
+  try {
+    const result = await prisma.countryService.aggregate({
+      where: { isActive: true, country: { isActive: true }, service: { isActive: true } },
+      _min: { price: true },
+    });
+    return result._min.price === null ? null : Number(result._min.price);
+  } catch (error) {
+    // Base injoignable (ex. au build) : la page reste servie, avec un texte
+    // sans chiffre plutôt qu'un prix faux.
+    console.error("[Home] prix minimum indisponible", error);
+    return null;
+  }
+}
+
+export default async function Home() {
+  const minPriceFcfa = await getMinPriceFcfa();
+
   return (
     <>
+      <SplashScreen />
       <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-blue-900 to-blue-700 text-white">
         {/* Subtle dot-grid pattern */}
         <div
@@ -31,7 +57,10 @@ export default function Home() {
         <div className="relative flex flex-col pb-24 sm:pb-0">
           {/* Public header */}
           <header className="flex items-center justify-between px-6 py-6 sm:px-10">
-            <span className="text-xl font-bold tracking-tight">FlashCodeSMS</span>
+            <span className="flex items-center gap-2.5 text-xl font-bold tracking-tight">
+              <LogoMark withBackground className="h-9 w-9" />
+              FlashCodeSMS
+            </span>
 
             <nav className="hidden items-center gap-6 sm:flex">
               <InstallPwaButton className="flex items-center gap-1.5 rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-blue-100 transition hover:border-white/40 hover:text-white">
@@ -83,7 +112,7 @@ export default function Home() {
       <WhyChooseUs />
 
       {/* 6 core features, each with its own CSS-only mockup */}
-      <FeaturesGrid />
+      <FeaturesGrid minPriceFcfa={minPriceFcfa} />
 
       {/* How it works: 3 steps */}
       <HowItWorks />
