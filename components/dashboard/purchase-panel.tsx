@@ -73,7 +73,16 @@ export function PurchasePanel({
         body: JSON.stringify({ country: selectedCountry.code, service: selectedService.slug }),
       });
 
-      const data = await response.json();
+      // Réponse non JSON = requête coupée par l'hébergeur (délai dépassé).
+      // L'achat a pu aboutir côté serveur avant la coupure : inviter à
+      // vérifier plutôt qu'à racheter, sous peine de payer deux fois.
+      const data = await response.json().catch(() => null);
+      if (!data) {
+        setError(
+          "La réponse du serveur n'a pas pu être lue. Rechargez la page et vérifiez « Mes numéros actifs » avant de réessayer."
+        );
+        return;
+      }
 
       if (!response.ok) {
         setError(data.error ?? "Impossible de créer la commande.");

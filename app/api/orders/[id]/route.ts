@@ -6,7 +6,15 @@ import { authOptions } from "@/lib/auth";
 import { applyOrderOutcome } from "@/lib/orders/settle";
 import { prisma } from "@/lib/prisma";
 import { getSmsProvider, ProviderError } from "@/lib/providers";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import type { SmsStatus } from "@/lib/providers/types";
+
+// Chaque appel interroge GrizzlySMS : sans limite, un script pourrait
+// marteler cette route et faire bannir notre clé API chez le fournisseur.
+// Le dashboard sonde toutes les 3 s par commande en attente (20/min) : 120/min
+// laisse de la marge pour plusieurs commandes et onglets simultanés.
+const POLL_LIMIT = 120;
+const POLL_WINDOW_MS = 60 * 1000;
 
 const SMS_STATUS_TO_ORDER_STATUS: Record<SmsStatus, OrderStatus> = {
   PENDING: "PENDING",
@@ -23,6 +31,11 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+    }
+
+    const limit = rateLimit(`order-poll:${session.user.id}`, POLL_LIMIT, POLL_WINDOW_MS);
+    if (!limit.success) {
+      return rateLimitResponse(limit.retryAfterSeconds);
     }
 
     const order = await prisma.order.findUnique({ where: { id: params.id } });

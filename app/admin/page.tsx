@@ -4,8 +4,11 @@ import { MetricCard } from "@/components/admin/metric-card";
 import { RecentTransactionsTable } from "@/components/admin/recent-transactions-table";
 import { RecentUsersTable } from "@/components/admin/recent-users-table";
 import { getRecentTransactions, getRecentUsers, getStats } from "@/lib/admin/queries";
+import { requireAdmin } from "@/lib/admin/require-admin";
 
 export default async function AdminOverviewPage() {
+  await requireAdmin();
+
   const [stats, recentUsers, recentTransactions] = await Promise.all([
     getStats(),
     getRecentUsers(),

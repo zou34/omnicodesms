@@ -1,10 +1,8 @@
 import { Mail, MessageSquare, Reply } from "lucide-react";
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
 
 import { Pagination } from "@/components/admin/pagination";
 import { getContactMessagesPage } from "@/lib/admin/queries";
-import { authOptions } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin/require-admin";
 
 // Toujours lu en direct : un nouveau message doit apparaître sans attendre.
 export const dynamic = "force-dynamic";
@@ -20,13 +18,7 @@ export default async function AdminMessagesPage({
 }: {
   searchParams: { page?: string };
 }) {
-  // Double contrôle : app/admin/layout.tsx protège déjà la section, mais un
-  // layout n'est pas réexécuté à chaque navigation côté client. Cette page
-  // expose des coordonnées de visiteurs : elle vérifie elle-même le rôle.
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") {
-    redirect("/dashboard");
-  }
+  await requireAdmin();
 
   const page = Number(searchParams.page ?? "1") || 1;
   const { messages, totalPages, totalCount } = await getContactMessagesPage(page);

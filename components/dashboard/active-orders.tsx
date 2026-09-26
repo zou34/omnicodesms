@@ -21,6 +21,10 @@ export function ActiveOrders({ orders, onOrderUpdated }: ActiveOrdersProps) {
 
   useEffect(() => {
     const interval = setInterval(async () => {
+      // Onglet en arrière-plan : inutile d'interroger le fournisseur, le
+      // prochain tick au retour sur l'onglet rattrapera l'état.
+      if (document.hidden) return;
+
       const pending = ordersRef.current.filter((order) => order.status === "PENDING");
       if (pending.length === 0) return;
 

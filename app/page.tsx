@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LogoMark } from "@/components/brand/logo-mark";
@@ -22,6 +23,10 @@ import { prisma } from "@/lib/prisma";
 // Le prix plancher affiché ("à partir de…") suit le catalogue, resynchronisé
 // régulièrement : la page est régénérée au plus toutes les heures.
 export const revalidate = 3600;
+
+// Canonique propre à l'accueil : placé dans le layout racine, il serait
+// hérité par toutes les pages et les ferait passer pour des doublons.
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 async function getMinPriceFcfa(): Promise<number | null> {
   try {
@@ -89,7 +94,7 @@ export default async function Home() {
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-blue-100 sm:text-lg">
               FlashCodeSMS est la plateforme professionnelle de référence pour recevoir des SMS en
               ligne et valider vos comptes sans carte SIM. Obtenez instantanément des numéros
-              virtuels dans plus de 170 pays pour débloquer WhatsApp, Telegram, Facebook,
+              virtuels dans plus de 100 pays pour débloquer WhatsApp, Telegram, Facebook,
               Instagram, TikTok, Google, YouTube et bien d&apos;autres.
             </p>
 

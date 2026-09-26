@@ -9,7 +9,7 @@ const FEATURES = [
   {
     icon: Globe,
     title: "Couverture Mondiale",
-    description: "Plus de 170 pays disponibles pour contourner toutes les géo-restrictions.",
+    description: "Plus de 100 pays disponibles pour contourner toutes les géo-restrictions.",
   },
   {
     icon: ShieldCheck,

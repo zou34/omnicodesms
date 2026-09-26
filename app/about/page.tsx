@@ -21,7 +21,7 @@ export default function AboutPage() {
         </p>
         <p>
           Notre mission est simple : rendre la vérification de compte instantanée, fiable et
-          accessible partout sur le continent, avec une couverture de plus de 170 pays et des
+          accessible partout sur le continent, avec une couverture de plus de 100 pays et des
           moyens de paiement locaux adaptés à chaque marché — mobile money comme Orange Money,
           Wave, MTN MoMo, ou cartes bancaires classiques.
         </p>

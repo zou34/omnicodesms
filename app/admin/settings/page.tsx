@@ -1,6 +1,9 @@
 import { Settings } from "lucide-react";
+import { requireAdmin } from "@/lib/admin/require-admin";
 
-export default function AdminSettingsPage() {
+export default async function AdminSettingsPage() {
+  await requireAdmin();
+
   return (
     <div className="px-8 py-10">
       <h1 className="text-2xl font-extrabold text-slate-900">Paramètres</h1>

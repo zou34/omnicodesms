@@ -1,12 +1,15 @@
 import { Pagination } from "@/components/admin/pagination";
 import { TransactionsTable } from "@/components/admin/transactions-table";
 import { getTransactionsPage } from "@/lib/admin/queries";
+import { requireAdmin } from "@/lib/admin/require-admin";
 
 export default async function AdminTransactionsPage({
   searchParams,
 }: {
   searchParams: { page?: string };
 }) {
+  await requireAdmin();
+
   const page = Number(searchParams.page ?? "1") || 1;
   const { transactions, totalPages, totalCount } = await getTransactionsPage(page);
 

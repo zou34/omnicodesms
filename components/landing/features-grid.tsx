@@ -23,7 +23,7 @@ function WorldwideMockup() {
         aria-hidden
         className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.15)_1px,transparent_0)] bg-[length:14px_14px]"
       />
-      <span className="relative text-5xl font-black text-slate-200">170+</span>
+      <span className="relative text-5xl font-black text-slate-200">100+</span>
     </div>
   );
 }
@@ -107,7 +107,7 @@ const FEATURES: Feature[] = [
   },
   {
     title: "Couverture Mondiale",
-    description: "Plus de 170 pays et services disponibles.",
+    description: "Plus de 100 pays et services disponibles.",
     Mockup: WorldwideMockup,
   },
   {

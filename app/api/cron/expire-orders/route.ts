@@ -17,10 +17,11 @@ export const dynamic = "force-dynamic";
 // Chaque commande implique un appel au fournisseur : on laisse de la marge.
 export const maxDuration = 60;
 
-// Traité par passage. Volontairement modeste : la tâche est idempotente et
-// repasse au déclenchement suivant, plutôt que de risquer un dépassement de
-// durée qui n'écrirait rien du tout.
-const BATCH_SIZE = 25;
+// Commandes vérifiées en parallèle par lot. Chaque appel fournisseur est
+// plafonné à 8 s : un lot coûte donc au pire ~8 s, et TIME_BUDGET_MS laisse
+// toujours finir le lot en cours avant maxDuration.
+const BATCH_SIZE = 10;
+const TIME_BUDGET_MS = 45_000;
 
 // Commandes sans date d'expiration (cas théorique) : on les considère mortes
 // passé ce délai, très au-delà du TTL de 10-20 min des fournisseurs.
@@ -47,73 +48,91 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  const now = new Date();
+  const startedAt = Date.now();
+  const now = new Date(startedAt);
 
   try {
-    const stale = await prisma.order.findMany({
-      where: {
-        status: "PENDING",
-        OR: [
-          { expiresAt: { lt: now } },
-          { expiresAt: null, createdAt: { lt: new Date(now.getTime() - FALLBACK_MAX_AGE_MS) } },
-        ],
-      },
-      orderBy: { createdAt: "asc" },
-      take: BATCH_SIZE,
-    });
-
     const provider = getSmsProvider();
+    let examined = 0;
     let refunded = 0;
     let completed = 0;
     let failed = 0;
+    // Commandes en échec pendant CE passage : exclues des lots suivants pour
+    // ne pas les retenter en boucle, elles seront reprises au prochain cron.
+    const failedIds: string[] = [];
 
-    for (const order of stale) {
-      try {
-        // Le SMS a pu arriver juste avant l'expiration sans que personne ne
-        // sonde : on demande l'issue réelle au fournisseur avant de conclure,
-        // pour ne jamais rembourser un numéro qui a effectivement livré.
-        let receivedCode: string | null = null;
-        let receivedText: string | null = null;
+    // La tâche ne tourne qu'une fois par jour (limite du plan Vercel) : un
+    // lot fixe de 25 laissait s'accumuler un arriéré de clients débités dès
+    // qu'il y avait plus de 25 abandons par jour. On traite donc des lots
+    // parallèles jusqu'à épuisement du stock ou du budget de temps.
+    while (Date.now() - startedAt < TIME_BUDGET_MS) {
+      const stale = await prisma.order.findMany({
+        where: {
+          status: "PENDING",
+          id: { notIn: failedIds },
+          OR: [
+            { expiresAt: { lt: now } },
+            { expiresAt: null, createdAt: { lt: new Date(now.getTime() - FALLBACK_MAX_AGE_MS) } },
+          ],
+        },
+        orderBy: { createdAt: "asc" },
+        take: BATCH_SIZE,
+      });
 
-        if (order.providerId) {
+      if (stale.length === 0) break;
+      examined += stale.length;
+
+      await Promise.all(
+        stale.map(async (order) => {
           try {
-            const sms = await provider.getSms(order.providerId);
-            if (sms.status === "RECEIVED" && sms.code) {
-              receivedCode = sms.code;
-              receivedText = sms.fullText;
+            // Le SMS a pu arriver juste avant l'expiration sans que personne ne
+            // sonde : on demande l'issue réelle au fournisseur avant de conclure,
+            // pour ne jamais rembourser un numéro qui a effectivement livré.
+            let receivedCode: string | null = null;
+            let receivedText: string | null = null;
+
+            if (order.providerId) {
+              try {
+                const sms = await provider.getSms(order.providerId);
+                if (sms.status === "RECEIVED" && sms.code) {
+                  receivedCode = sms.code;
+                  receivedText = sms.fullText;
+                }
+              } catch (error) {
+                // Commande inconnue du fournisseur (purgée de son côté) : la date
+                // d'expiration est passée et aucun code n'a jamais été enregistré
+                // chez nous, on tranche en faveur du client. Toute AUTRE erreur
+                // (fournisseur injoignable) ne dit rien de l'issue réelle : on ne
+                // rembourse pas un SMS peut-être livré, la commande sera reprise
+                // au passage suivant.
+                if (!(error instanceof ProviderError) || error.code !== "ORDER_NOT_FOUND") throw error;
+              }
+            }
+
+            if (receivedCode) {
+              await applyOrderOutcome(order, "COMPLETED", receivedCode, receivedText);
+              completed++;
+            } else {
+              await applyOrderOutcome(order, "EXPIRED", null, null);
+              refunded++;
             }
           } catch (error) {
-            // Commande inconnue du fournisseur (purgée de son côté) : la date
-            // d'expiration est passée et aucun code n'a jamais été enregistré
-            // chez nous, on tranche en faveur du client. Toute AUTRE erreur
-            // (fournisseur injoignable) ne dit rien de l'issue réelle : on ne
-            // rembourse pas un SMS peut-être livré, la commande sera reprise
-            // au passage suivant.
-            if (!(error instanceof ProviderError) || error.code !== "ORDER_NOT_FOUND") throw error;
+            // Une commande en échec ne doit pas interrompre le lot : elle sera
+            // reprise au déclenchement suivant.
+            failed++;
+            failedIds.push(order.id);
+            console.error(`[CRON expire-orders] échec sur la commande ${order.id}`, error);
           }
-        }
-
-        if (receivedCode) {
-          await applyOrderOutcome(order, "COMPLETED", receivedCode, receivedText);
-          completed++;
-        } else {
-          await applyOrderOutcome(order, "EXPIRED", null, null);
-          refunded++;
-        }
-      } catch (error) {
-        // Une commande en échec ne doit pas interrompre le lot : elle sera
-        // reprise au déclenchement suivant.
-        failed++;
-        console.error(`[CRON expire-orders] échec sur la commande ${order.id}`, error);
-      }
+        })
+      );
     }
 
     console.log(
-      `[CRON expire-orders] ${stale.length} commande(s) examinée(s) : ` +
+      `[CRON expire-orders] ${examined} commande(s) examinée(s) : ` +
         `${refunded} remboursée(s), ${completed} complétée(s), ${failed} en échec`
     );
 
-    return NextResponse.json({ examined: stale.length, refunded, completed, failed });
+    return NextResponse.json({ examined, refunded, completed, failed });
   } catch (error) {
     console.error("[CRON expire-orders]", error);
     return NextResponse.json({ error: "Une erreur interne est survenue." }, { status: 500 });
