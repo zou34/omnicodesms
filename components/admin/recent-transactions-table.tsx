@@ -16,6 +16,7 @@ const TYPE_LABELS: Record<RecentTransaction["type"], string> = {
   DEPOSIT: "Dépôt",
   PURCHASE: "Achat",
   REFUND: "Remboursement",
+  BONUS: "Bonus offert",
 };
 
 const PROVIDER_LABELS: Record<RecentTransaction["provider"], string> = {

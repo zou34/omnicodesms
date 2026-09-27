@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
  * change dans le code, cette liste doit changer avec elle : une FAQ qui promet
  * autre chose que ce que fait le produit est pire que pas de FAQ du tout.
  */
-const QUESTIONS = [
+export const FAQ_QUESTIONS = [
   {
     question: "Que se passe-t-il si je ne reçois pas le SMS ?",
     answer:
@@ -76,7 +76,7 @@ export function Faq() {
         </div>
 
         <div className="mt-14 space-y-3">
-          {QUESTIONS.map((item) => (
+          {FAQ_QUESTIONS.map((item) => (
             /* <details> natif : l'accordéon fonctionne sans JavaScript, reste
                accessible au clavier et aux lecteurs d'écran, et la page peut
                rester un composant serveur. */

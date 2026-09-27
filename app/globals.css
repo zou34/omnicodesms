@@ -101,3 +101,78 @@ body {
   .splash-logo .logo-bolt,
   .splash-title { animation: none; }
 }
+
+/* ---------------------------------------------------------------------------
+ * Boutons d'action principaux : effet néon "SaaS Tech Premium".
+ *   <button class="btn-glow">                -> halo bleu (défaut)
+ *   <button class="btn-glow btn-glow-amber"> -> halo ambré (palier mis en avant)
+ * Halo coloré au repos, renforcé au survol, pulsation lente ; tout mouvement
+ * est coupé si l'utilisateur préfère réduire les animations.
+ * ------------------------------------------------------------------------- */
+@layer components {
+  .btn-glow {
+    --glow-rgb: 59, 130, 246;
+    box-shadow:
+      0 0 0 1px rgba(var(--glow-rgb), 0.45),
+      0 0 18px rgba(var(--glow-rgb), 0.45),
+      0 6px 24px -6px rgba(var(--glow-rgb), 0.6);
+    transition:
+      box-shadow 0.25s ease,
+      transform 0.2s ease,
+      background-color 0.2s ease,
+      filter 0.2s ease;
+    animation: btn-glow-pulse 2.8s ease-in-out infinite;
+  }
+
+  .btn-glow:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+    box-shadow:
+      0 0 0 1px rgba(var(--glow-rgb), 0.7),
+      0 0 28px rgba(var(--glow-rgb), 0.7),
+      0 10px 36px -8px rgba(var(--glow-rgb), 0.85);
+    animation-play-state: paused;
+  }
+
+  .btn-glow:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .btn-glow:disabled {
+    animation: none;
+    box-shadow: none;
+  }
+
+  .btn-glow-amber {
+    --glow-rgb: 245, 158, 11;
+  }
+
+  .btn-glow-emerald {
+    --glow-rgb: 16, 185, 129;
+  }
+}
+
+@keyframes btn-glow-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(var(--glow-rgb), 0.45),
+      0 0 18px rgba(var(--glow-rgb), 0.45),
+      0 6px 24px -6px rgba(var(--glow-rgb), 0.6);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(var(--glow-rgb), 0.6),
+      0 0 26px rgba(var(--glow-rgb), 0.6),
+      0 8px 30px -6px rgba(var(--glow-rgb), 0.75);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-glow {
+    animation: none;
+  }
+  .btn-glow:hover:not(:disabled) {
+    transform: none;
+  }
+}

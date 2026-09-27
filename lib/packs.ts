@@ -15,32 +15,66 @@
 
 export interface RechargeAmount {
   id: string;
+  /** Nom marketing du palier. */
+  name: string;
+  /** Accroche courte : à qui s'adresse le palier. */
+  tagline: string;
+  /** Montant encaissé par SasPay. */
   priceFcfa: number;
-  discountTag?: string;
+  /**
+   * Crédit OFFERT en plus du montant payé, versé à la confirmation du
+   * paiement (app/api/webhooks/payment). C'est lui qui rend vrai le prix
+   * d'ancrage affiché ("6 000 FCFA" barré au-dessus de "5 000 FCFA") : le
+   * client reçoit réellement cette valeur. Un prix de référence fictif serait
+   * une pratique commerciale trompeuse — ne jamais afficher d'ancrage sans
+   * bonus correspondant.
+   */
+  bonusFcfa: number;
+  /** Palier mis en avant (badge "Recommandé", carte agrandie). */
   featured?: boolean;
-  perks?: string[];
+  perks: string[];
 }
 
 export const RECHARGE_AMOUNTS: RechargeAmount[] = [
   {
     id: "recharge-1000",
+    name: "Pass Découverte",
+    tagline: "Pour tester en toute simplicité",
     priceFcfa: 1000,
+    bonusFcfa: 0,
+    perks: ["Crédit instantané", "Tous pays et services", "Remboursé si aucun SMS"],
   },
   {
     id: "recharge-2500",
+    name: "Pass Essentiel",
+    tagline: "Pour vos vérifications régulières",
     priceFcfa: 2500,
+    bonusFcfa: 0,
+    perks: ["Crédit instantané", "Tous pays et services", "Crédit sans expiration"],
   },
   {
     id: "recharge-5000",
+    name: "Pass Pro",
+    tagline: "Le meilleur rapport valeur/prix",
     priceFcfa: 5000,
+    bonusFcfa: 1000,
     featured: true,
-    perks: ["Crédit instantané", "Sans expiration", "Support 24/7"],
+    perks: ["+1 000 FCFA de crédit offert", "Crédit sans expiration", "Support prioritaire"],
   },
   {
-    id: "recharge-10000",
-    priceFcfa: 10000,
+    id: "recharge-15000",
+    name: "Pass Business",
+    tagline: "Pour les gros volumes et revendeurs",
+    priceFcfa: 15000,
+    bonusFcfa: 3000,
+    perks: ["+3 000 FCFA de crédit offert", "Idéal revendeurs et agences", "Support prioritaire"],
   },
 ];
+
+/** Crédit total reçu pour un palier : montant payé + bonus offert. */
+export function totalCreditFcfa(amount: RechargeAmount): number {
+  return amount.priceFcfa + amount.bonusFcfa;
+}
 
 export function getRechargeAmountById(id: string): RechargeAmount | undefined {
   return RECHARGE_AMOUNTS.find((amount) => amount.id === id);

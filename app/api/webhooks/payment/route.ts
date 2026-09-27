@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 import { getPaymentProvider } from "@/lib/payments";
@@ -21,6 +22,30 @@ const WEBHOOK_WINDOW_MS = 60 * 1000;
 // payload wouldn't change the outcome and would only add noise. The one
 // exception is an internal failure (database unreachable): that answers 500
 // on purpose, so the gateway retries once we're back up.
+/** Crédite un bonus et l'inscrit au grand livre (type BONUS, référence unique). */
+async function creditBonus(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  depositId: string,
+  kind: "bonus" | "promo",
+  amount: Prisma.Decimal
+) {
+  await tx.user.update({ where: { id: userId }, data: { balance: { increment: amount } } });
+  await tx.transaction.create({
+    data: {
+      userId,
+      type: "BONUS",
+      status: "SUCCESS",
+      provider: "WALLET",
+      // Contrainte d'unicité (provider, providerRef) : un même bonus ne peut
+      // jamais être inscrit deux fois pour un même dépôt.
+      providerRef: `${kind}_${depositId}`,
+      amount,
+      currency: "FCFA",
+    },
+  });
+}
+
 export async function POST(request: Request) {
   const ip = getClientIp(request.headers);
   const limit = rateLimit(`webhook:${ip}`, WEBHOOK_LIMIT, WEBHOOK_WINDOW_MS);
@@ -108,6 +133,50 @@ export async function POST(request: Request) {
           where: { id: transaction.userId },
           data: { balance: { increment: transaction.amount } },
         });
+
+        // Bonus du palier (ex. Pass Pro : 5 000 payés, +1 000 offerts),
+        // figé au checkout. Écriture BONUS séparée : l'historique du client
+        // continue de sommer exactement à son solde.
+        if (transaction.bonusAmount.gt(0)) {
+          await creditBonus(tx, transaction.userId, transaction.id, "bonus", transaction.bonusAmount);
+        }
+
+        // Bonus du code promo, sous deux conditions revérifiées ICI de façon
+        // atomique, car deux paiements peuvent être en cours avec le même
+        // code : quota non épuisé (UPDATE conditionnel) et première
+        // utilisation par ce client. Le paiement, lui, est crédité quoi qu'il
+        // arrive — seul le bonus saute.
+        if (transaction.promoCodeId && transaction.promoBonusAmount.gt(0)) {
+          const alreadyRedeemed = await tx.promoRedemption.findUnique({
+            where: { promoCodeId_userId: { promoCodeId: transaction.promoCodeId, userId: transaction.userId } },
+            select: { id: true },
+          });
+          const quotaTaken = alreadyRedeemed
+            ? 0
+            : await tx.$executeRaw`
+                UPDATE "PromoCode" SET "usedCount" = "usedCount" + 1
+                WHERE "id" = ${transaction.promoCodeId}
+                  AND ("maxUses" IS NULL OR "usedCount" < "maxUses")`;
+
+          if (quotaTaken === 1) {
+            // Une course sur l'unicité (même client, deux paiements simultanés)
+            // lèverait une erreur ici : la transaction entière est annulée, la
+            // route répond 500, SasPay relance, et la relance trouve la
+            // redemption existante — le paiement est alors crédité sans bonus.
+            await tx.promoRedemption.create({
+              data: {
+                promoCodeId: transaction.promoCodeId,
+                userId: transaction.userId,
+                transactionId: transaction.id,
+              },
+            });
+            await creditBonus(tx, transaction.userId, transaction.id, "promo", transaction.promoBonusAmount);
+          } else {
+            console.warn(
+              `[POST /api/webhooks/payment] bonus promo non versé pour ${reference} : code déjà utilisé ou quota épuisé`
+            );
+          }
+        }
       }
 
       return true;

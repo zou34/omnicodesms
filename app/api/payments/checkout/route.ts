@@ -7,10 +7,12 @@ import { authOptions } from "@/lib/auth";
 import { getRechargeAmountById } from "@/lib/packs";
 import { getPaymentProvider, PaymentProviderError } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
+import { PROMO_CODE_MAX_LENGTH, validatePromoCode } from "@/lib/promo";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const checkoutSchema = z.object({
   amountId: z.string().min(1),
+  promoCode: z.string().trim().max(PROMO_CODE_MAX_LENGTH).optional(),
 });
 
 // `||`, not `??` — see app/layout.tsx for why an empty string must also fall back.
@@ -57,6 +59,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Montant de recharge introuvable." }, { status: 404 });
     }
 
+    // Code promo revérifié ici, côté serveur : l'aperçu affiché au client
+    // (/api/promo/validate) n'engage rien. Un code devenu invalide entre-temps
+    // bloque le paiement plutôt que d'encaisser sans le bonus annoncé.
+    let promoCodeId: string | null = null;
+    let promoBonusFcfa = 0;
+    if (parsed.data.promoCode) {
+      const promo = await validatePromoCode(parsed.data.promoCode, session.user.id, rechargeAmount.priceFcfa);
+      if (!promo.ok) {
+        return NextResponse.json({ error: promo.error, code: "INVALID_PROMO" }, { status: 422 });
+      }
+      promoCodeId = promo.promo.id;
+      promoBonusFcfa = promo.bonusFcfa ?? 0;
+    }
+
     const reference = `checkout_${randomUUID()}`;
 
     // Recorded PENDING up front so /api/webhooks/payment has something to
@@ -71,6 +87,11 @@ export async function POST(request: Request) {
         providerRef: reference,
         amount: rechargeAmount.priceFcfa,
         currency: "FCFA",
+        // Bonus figés maintenant, crédités seulement à la confirmation du
+        // paiement (app/api/webhooks/payment/route.ts).
+        bonusAmount: rechargeAmount.bonusFcfa,
+        promoBonusAmount: promoBonusFcfa,
+        promoCodeId,
       },
     });
 
