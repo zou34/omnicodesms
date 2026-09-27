@@ -80,9 +80,9 @@ function DashboardWireframeMockup() {
 function SupportGaugeMockup() {
   return (
     <div className="flex h-24 items-center justify-center">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[conic-gradient(#2563eb_0%_99%,#e2e8f0_99%_100%)]">
+      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[conic-gradient(#2563eb_0%_100%)]">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-sm font-bold text-blue-600">
-          99%
+          24 h
         </div>
       </div>
     </div>
@@ -131,8 +131,8 @@ const FEATURES: Feature[] = [
     Mockup: DashboardWireframeMockup,
   },
   {
-    title: "Support 24/7",
-    description: "Équipe disponible à tout moment.",
+    title: "Support Réactif",
+    description: "Une question ? Réponse à vos messages sous 24 h.",
     Mockup: SupportGaugeMockup,
   },
 ];

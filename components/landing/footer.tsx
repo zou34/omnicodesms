@@ -6,7 +6,6 @@ const LINKS = [
   { label: "Nous Contacter", href: "/contact", accent: false },
   { label: "Conditions d'Utilisation", href: "/terms", accent: false },
   { label: "Politique de Confidentialité", href: "/privacy", accent: false },
-  { label: "API", href: "/api-docs", accent: true },
 ] as const;
 
 export function Footer() {

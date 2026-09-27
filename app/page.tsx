@@ -13,7 +13,6 @@ import { HowItWorks } from "@/components/landing/how-it-works";
 import { PaymentMethods } from "@/components/landing/payment-methods";
 import { PhoneShowcase } from "@/components/landing/phone-showcase";
 import { Pricing } from "@/components/landing/pricing";
-import { ReferralSection } from "@/components/landing/referral-section";
 import { Testimonials } from "@/components/landing/testimonials";
 import { WhyChooseUs } from "@/components/landing/why-choose-us";
 import { InstallPwaButton } from "@/components/pwa/install-pwa-button";
@@ -204,14 +203,11 @@ export default async function Home() {
       {/* FCFA pricing packs */}
       <Pricing />
 
-      {/* Referral program */}
-      <ReferralSection />
-
       {/* Final CTA */}
       <FinalCta />
 
-      {/* Preuve sociale, puis levée des dernières objections : les deux
-          dernières choses lues avant le pied de page. */}
+      {/* Preuve sociale (avis réels uniquement : masquée tant qu'il n'y en a
+          pas), puis levée des dernières objections avant le pied de page. */}
       <Testimonials />
 
       <Faq />

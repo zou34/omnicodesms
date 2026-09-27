@@ -59,7 +59,7 @@ export const RECHARGE_AMOUNTS: RechargeAmount[] = [
     priceFcfa: 5000,
     bonusFcfa: 1000,
     featured: true,
-    perks: ["+1 000 FCFA de crédit offert", "Crédit sans expiration", "Support prioritaire"],
+    perks: ["+1 000 FCFA de crédit offert", "Crédit sans expiration", "Remboursé si aucun SMS"],
   },
   {
     id: "recharge-15000",
@@ -67,7 +67,7 @@ export const RECHARGE_AMOUNTS: RechargeAmount[] = [
     tagline: "Pour les gros volumes et revendeurs",
     priceFcfa: 15000,
     bonusFcfa: 3000,
-    perks: ["+3 000 FCFA de crédit offert", "Idéal revendeurs et agences", "Support prioritaire"],
+    perks: ["+3 000 FCFA de crédit offert", "Idéal revendeurs et agences", "Remboursé si aucun SMS"],
   },
 ];
 

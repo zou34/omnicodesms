@@ -81,8 +81,8 @@ export function PhoneShowcase() {
 
               <div className="mb-4 flex items-center justify-between rounded-2xl bg-blue-600 px-4 py-3 text-white">
                 <div>
-                  <p className="text-[10px] font-medium text-blue-100">Taux de succès</p>
-                  <p className="text-lg font-extrabold">98.7%</p>
+                  <p className="text-[10px] font-medium text-blue-100">Remboursé si aucun SMS</p>
+                  <p className="text-lg font-extrabold">100 %</p>
                 </div>
                 <TrendingUp className="h-6 w-6 text-blue-200" />
               </div>
