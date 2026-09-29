@@ -3,7 +3,7 @@
 import { Loader2, ShieldCheck, Tag, X, Zap } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-import { TierCard, tierCtaClassName } from "@/components/pricing/tier-card";
+import { TierCard, TierCta } from "@/components/pricing/tier-card";
 import { Toast, type ToastState } from "@/components/ui/toast";
 import { formatFcfa, RECHARGE_AMOUNTS } from "@/lib/packs";
 import { computePromoBonus, normalizePromoCode, type PromoRules } from "@/lib/promo-rules";
@@ -213,15 +213,14 @@ export function RechargeModal({ open, onClose }: RechargeModalProps) {
                           : `Code valable dès ${formatFcfa(appliedPromo.minRechargeFcfa)}`}
                       </p>
                     )}
-                    <button
-                      type="button"
+                    <TierCta
+                      featured={amount.featured}
                       onClick={() => handleRecharge(amount.id)}
                       disabled={payingAmountId !== null}
-                      className={tierCtaClassName(amount.featured)}
                     >
                       {isPaying && <Loader2 className="h-4 w-4 animate-spin" />}
                       {isPaying ? "Redirection..." : `Recharger ${formatFcfa(amount.priceFcfa)}`}
-                    </button>
+                    </TierCta>
                   </div>
                 }
               />

@@ -1,6 +1,8 @@
 import { Check, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { GlowingButton } from "@/components/ui/glowing-button";
+
 import { formatFcfa, type RechargeAmount, totalCreditFcfa } from "@/lib/packs";
 
 interface TierCardProps {
@@ -74,9 +76,45 @@ export function TierCard({ amount, theme, cta }: TierCardProps) {
   );
 }
 
-/** Classes du bouton d'action d'une carte, selon qu'elle est mise en avant. */
-export function tierCtaClassName(featured: boolean | undefined): string {
-  return featured
-    ? "btn-glow btn-glow-amber flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-3 text-sm font-bold text-amber-950 disabled:cursor-not-allowed disabled:opacity-60"
-    : "btn-glow flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60";
+interface TierCtaProps {
+  featured?: boolean;
+  children: ReactNode;
+  /** Lien (page d'accueil) ou action (paiement dans le dashboard). */
+  href?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+}
+
+/**
+ * Bouton "Recharger" d'une carte : même anneau néon animé que le CTA principal
+ * de la page d'accueil (GlowingButton), ambré sur le palier mis en avant, et
+ * halo atténué pour que quatre boutons côte à côte restent élégants.
+ */
+export function TierCta({ featured, children, href, onClick, disabled }: TierCtaProps) {
+  const className = `w-full py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60 ${
+    featured ? "text-amber-950" : "text-white"
+  }`;
+  const maskClassName = featured
+    ? "bg-gradient-to-r from-amber-400 to-orange-500 group-hover:from-amber-300 group-hover:to-orange-400"
+    : "bg-blue-600 group-hover:bg-blue-500";
+  const tone = featured ? "amber" : "blue";
+
+  return href ? (
+    <GlowingButton href={href} fullWidth subtle tone={tone} className={className} maskClassName={maskClassName}>
+      {children}
+    </GlowingButton>
+  ) : (
+    <GlowingButton
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      fullWidth
+      subtle
+      tone={tone}
+      className={className}
+      maskClassName={maskClassName}
+    >
+      {children}
+    </GlowingButton>
+  );
 }

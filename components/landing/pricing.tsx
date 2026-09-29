@@ -1,6 +1,4 @@
-import Link from "next/link";
-
-import { TierCard, tierCtaClassName } from "@/components/pricing/tier-card";
+import { TierCard, TierCta } from "@/components/pricing/tier-card";
 import { RECHARGE_AMOUNTS } from "@/lib/packs";
 
 // Crédit pur, pas des packs d'activations promises : le catalogue tarife
@@ -29,9 +27,9 @@ export function Pricing() {
               amount={amount}
               theme="light"
               cta={
-                <Link href="/register" className={tierCtaClassName(amount.featured)}>
+                <TierCta href="/register" featured={amount.featured}>
                   Recharger
-                </Link>
+                </TierCta>
               }
             />
           ))}

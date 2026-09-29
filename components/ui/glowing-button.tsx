@@ -17,6 +17,13 @@ interface GlowingButtonBaseProps {
    * resolve against (an `inline-block` wrapper shrink-wraps by default).
    */
   fullWidth?: boolean;
+  /** Couleur de l'anneau néon : bleu (défaut) ou ambré (palier mis en avant). */
+  tone?: "blue" | "amber";
+  /**
+   * Halo extérieur atténué : pour plusieurs boutons animés côte à côte (cartes
+   * de paliers), où le halo plein deviendrait envahissant.
+   */
+  subtle?: boolean;
 }
 
 type LinkVariantProps = GlowingButtonBaseProps & {
@@ -31,8 +38,10 @@ type GlowingButtonProps = LinkVariantProps | ButtonVariantProps;
 
 // Bright cyan -> intense blue neon sweep, wide arc so it reads as "on" at a
 // glance instead of a faint blip that only shows for an instant per lap.
-const GLOW_GRADIENT =
-  "bg-[conic-gradient(from_0deg,transparent_0%,#22d3ee_10%,#2563eb_30%,#22d3ee_50%,transparent_65%)]";
+const GLOW_GRADIENTS = {
+  blue: "bg-[conic-gradient(from_0deg,transparent_0%,#22d3ee_10%,#2563eb_30%,#22d3ee_50%,transparent_65%)]",
+  amber: "bg-[conic-gradient(from_0deg,transparent_0%,#fde047_10%,#f97316_30%,#fde047_50%,transparent_65%)]",
+} as const;
 
 /**
  * Wraps a pill-shaped CTA with a rotating neon conic-gradient ring: a crisp
@@ -47,13 +56,19 @@ export function GlowingButton({
   className = "",
   maskClassName = "bg-white",
   fullWidth = false,
+  tone = "blue",
+  subtle = false,
   href,
   ...props
 }: GlowingButtonProps) {
+  const GLOW_GRADIENT = GLOW_GRADIENTS[tone];
+
   const ExternalGlow = (
     <span
       aria-hidden
-      className={`absolute -inset-3 -z-10 rounded-full opacity-80 blur-xl animate-spin-glow motion-reduce:animate-none ${GLOW_GRADIENT}`}
+      className={`absolute -z-10 rounded-full animate-spin-glow motion-reduce:animate-none ${
+        subtle ? "-inset-1.5 opacity-50 blur-lg" : "-inset-3 opacity-80 blur-xl"
+      } ${GLOW_GRADIENT}`}
     />
   );
 
