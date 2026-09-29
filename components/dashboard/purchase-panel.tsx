@@ -126,7 +126,7 @@ export function PurchasePanel({
             id="country"
             value={countryId}
             onChange={(e) => setCountryId(e.target.value)}
-            className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-500"
+            className="field-glow w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2.5 text-sm text-white outline-none"
           >
             {/* Les destinations à fort volume sont regroupées en tête : la
                 liste complète compte près de 90 pays, et un client qui doit la
@@ -159,7 +159,7 @@ export function PurchasePanel({
             id="service"
             value={effectiveServiceId}
             onChange={(e) => setServiceId(e.target.value)}
-            className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2.5 text-sm text-white outline-none focus:border-blue-500"
+            className="field-glow w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2.5 text-sm text-white outline-none"
           >
             {availableServices.map((service) => (
               <option key={service.id} value={service.id}>
@@ -186,7 +186,7 @@ export function PurchasePanel({
             <button
               type="button"
               onClick={onInsufficientBalance}
-              className="shrink-0 rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-300 transition hover:bg-red-500/30"
+              className="btn-glow btn-glow-rose shrink-0 rounded-full bg-rose-500 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-400"
             >
               Recharger
             </button>

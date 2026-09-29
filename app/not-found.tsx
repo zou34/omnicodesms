@@ -24,7 +24,7 @@ export default function NotFound() {
 
         <Link
           href="/"
-          className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
+          className="btn-glow mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700"
         >
           <Home className="h-4 w-4" />
           Retour à l&apos;accueil

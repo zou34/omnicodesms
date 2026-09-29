@@ -84,7 +84,7 @@ export function WelcomeModal({ onRecharge }: WelcomeModalProps) {
         <button
           type="button"
           onClick={handleRecharge}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-[0_0_15px_rgba(37,99,235,0.4)] transition hover:bg-blue-700"
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-bold text-white btn-glow hover:bg-blue-700"
         >
           <PlusCircle className="h-4 w-4" />
           Recharger mon solde

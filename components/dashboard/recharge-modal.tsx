@@ -172,12 +172,12 @@ export function RechargeModal({ open, onClose }: RechargeModalProps) {
                 placeholder="Vous avez un code promo ?"
                 autoComplete="off"
                 maxLength={32}
-                className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 font-mono text-sm uppercase text-white outline-none placeholder:font-sans placeholder:normal-case placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="field-glow flex-1 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 font-mono text-sm uppercase text-white outline-none placeholder:font-sans placeholder:normal-case placeholder:text-slate-500"
               />
               <button
                 type="submit"
                 disabled={!promoInput.trim() || isCheckingPromo}
-                className="flex items-center justify-center gap-2 rounded-lg border border-slate-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-blue-500 hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                className="btn-glow flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isCheckingPromo && <Loader2 className="h-4 w-4 animate-spin" />}
                 Appliquer

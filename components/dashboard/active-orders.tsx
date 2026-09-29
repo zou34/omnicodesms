@@ -129,7 +129,7 @@ function OrderCard({ order }: { order: OrderVM }) {
             <button
               type="button"
               onClick={() => copyToClipboard(order.smsCode!, "code")}
-              className="rounded-lg border border-emerald-500/30 px-3 py-1.5 text-xs text-emerald-400 hover:bg-emerald-500/10"
+              className="btn-glow btn-glow-emerald rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-emerald-950 hover:bg-emerald-400"
             >
               {copied === "code" ? "Copié !" : "Copier"}
             </button>

@@ -146,7 +146,10 @@ export default async function Home() {
               <InstallPwaButton className="flex items-center gap-1.5 rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-blue-100 transition hover:border-white/40 hover:text-white">
                 Installer l&apos;application
               </InstallPwaButton>
-              <Link href="/login" className="text-sm font-medium text-blue-100 transition hover:text-white">
+              <Link
+                href="/login"
+                className="btn-glow btn-glow-white rounded-full border border-white/30 px-5 py-2 text-sm font-semibold text-white hover:bg-white/10"
+              >
                 Connexion
               </Link>
               <Link
@@ -163,7 +166,7 @@ export default async function Home() {
             <p className="text-lg font-bold text-blue-200 sm:text-2xl">FlashCodeSMS</p>
 
             <h1 className="mt-4 max-w-4xl text-4xl font-extrabold leading-tight sm:text-6xl">
-              Numéro Virtuel Instantané : Recevez vos SMS de Validation en Ligne
+              Numéro Virtuel Instantané&nbsp;: Recevez vos SMS de Validation en Ligne
             </h1>
 
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-blue-100 sm:text-lg">
@@ -216,10 +219,10 @@ export default async function Home() {
 
       {/* Mobile-only fixed bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-20 flex gap-3 border-t border-white/10 bg-blue-950/90 p-4 backdrop-blur sm:hidden">
-        <InstallPwaButton className="flex shrink-0 items-center justify-center rounded-full border border-white/30 p-3 text-white transition hover:bg-white/10" />
+        <InstallPwaButton className="btn-glow btn-glow-white flex shrink-0 items-center justify-center rounded-full border border-white/30 p-3 text-white hover:bg-white/10" />
         <Link
           href="/login"
-          className="flex-1 rounded-full border border-white/30 py-3 text-center text-sm font-semibold text-white"
+          className="btn-glow btn-glow-white flex-1 rounded-full border border-white/30 py-3 text-center text-sm font-semibold text-white hover:bg-white/10"
         >
           Connexion
         </Link>

@@ -33,7 +33,7 @@ export function Footer() {
 
         <Link
           href="/contact"
-          className="mt-10 inline-block rounded-full border border-white/30 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
+          className="btn-glow btn-glow-white mt-10 inline-block rounded-full border border-white/30 px-6 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
         >
           Nous Contacter
         </Link>
