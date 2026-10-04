@@ -83,7 +83,7 @@ export function ForgotPasswordForm() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500"
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-3 text-base text-white placeholder-slate-500 outline-none sm:text-sm focus:border-blue-500"
               placeholder="vous@exemple.com"
             />
           </div>

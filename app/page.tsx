@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LogoMark } from "@/components/brand/logo-mark";
-import { SplashScreen } from "@/components/brand/splash-screen";
 
 import { Faq, FAQ_QUESTIONS } from "@/components/landing/faq";
 import { FeaturesGrid } from "@/components/landing/features-grid";
@@ -123,7 +122,6 @@ export default async function Home() {
         // pouvoir refermer la balise.
         dangerouslySetInnerHTML={{ __html: JSON.stringify(buildJsonLd(minPriceFcfa)).replace(/</g, "\\u003c") }}
       />
-      <SplashScreen />
       <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-blue-900 to-blue-700 text-white">
         {/* Subtle dot-grid pattern */}
         <div
@@ -218,7 +216,7 @@ export default async function Home() {
       <Footer />
 
       {/* Mobile-only fixed bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 flex gap-3 border-t border-white/10 bg-blue-950/90 p-4 backdrop-blur sm:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-20 flex gap-3 border-t border-white/10 bg-blue-950/95 p-4 sm:hidden">
         <InstallPwaButton className="btn-glow btn-glow-white flex shrink-0 items-center justify-center rounded-full border border-white/30 p-3 text-white hover:bg-white/10" />
         <Link
           href="/login"

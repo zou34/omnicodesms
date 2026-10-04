@@ -4,9 +4,32 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { isPriorityCountry, sortCountriesForDisplay, toFrenchCountryName } from "@/lib/countries";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { getRechargeAmountById } from "@/lib/packs";
 import { prisma } from "@/lib/prisma";
 
-export default async function DashboardPage() {
+/**
+ * Palier choisi sur la page d'accueil avant l'inscription. Il arrive soit en
+ * clair (?pack=, inscription par e-mail ou client déjà connecté), soit niché
+ * dans le ?callbackUrl= que NextAuth ajoute à pages.newUser après une première
+ * connexion Google. Toujours revalidé contre lib/packs.ts.
+ */
+function resolvePackId(searchParams: { pack?: string; callbackUrl?: string }): string | null {
+  let candidate = searchParams.pack;
+  if (!candidate && searchParams.callbackUrl) {
+    try {
+      candidate = new URL(searchParams.callbackUrl, "http://localhost").searchParams.get("pack") ?? undefined;
+    } catch {
+      // callbackUrl illisible : pas de palier présélectionné.
+    }
+  }
+  return getRechargeAmountById(candidate ?? "")?.id ?? null;
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: { pack?: string; callbackUrl?: string };
+}) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -38,6 +61,7 @@ export default async function DashboardPage() {
       userName={user.name}
       userEmail={user.email}
       initialBalance={user.balance.toString()}
+      initialPackId={resolvePackId(searchParams)}
       countries={sortCountriesForDisplay(
         countries.map((country) => ({
           id: country.id,

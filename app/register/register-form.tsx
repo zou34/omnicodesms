@@ -7,17 +7,24 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { AuthShell } from "@/components/auth/auth-shell";
-import { GoogleIcon } from "@/components/auth/google-icon";
+import { GoogleSignIn } from "@/components/auth/google-sign-in";
 
-export function RegisterForm() {
+interface RegisterFormProps {
+  /** Palier choisi sur la page d'accueil, déjà validé côté serveur. */
+  packId: string | null;
+  googleAvailable: boolean;
+}
+
+export function RegisterForm({ packId, googleAvailable }: RegisterFormProps) {
   const router = useRouter();
+  // Le dashboard ouvre la recharge sur ce palier (voir app/dashboard/page.tsx).
+  const dashboardUrl = packId ? `/dashboard?pack=${packId}` : "/dashboard";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -48,11 +55,11 @@ export function RegisterForm() {
       setIsLoading(false);
 
       if (result?.error) {
-        router.push("/login");
+        router.push(`/login?callbackUrl=${encodeURIComponent(dashboardUrl)}`);
         return;
       }
 
-      router.push("/dashboard?welcome=1");
+      router.push(packId ? `/dashboard?welcome=1&pack=${packId}` : "/dashboard?welcome=1");
       router.refresh();
     } catch {
       setError("Une erreur est survenue. Réessayez.");
@@ -72,24 +79,7 @@ export function RegisterForm() {
         </div>
       )}
 
-      <button
-        type="button"
-        disabled={isGoogleLoading}
-        onClick={() => {
-          setIsGoogleLoading(true);
-          signIn("google", { callbackUrl: "/dashboard" });
-        }}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
-      >
-        {isGoogleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
-        Continuer avec Google
-      </button>
-
-      <div className="my-6 flex items-center gap-3">
-        <div className="h-px flex-1 bg-slate-800" />
-        <span className="text-xs uppercase text-slate-500">ou</span>
-        <div className="h-px flex-1 bg-slate-800" />
-      </div>
+      <GoogleSignIn callbackUrl={dashboardUrl} available={googleAvailable} />
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -105,7 +95,7 @@ export function RegisterForm() {
               autoComplete="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500"
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-3 text-base text-white placeholder-slate-500 outline-none sm:text-sm focus:border-blue-500"
               placeholder="Jean Dupont"
             />
           </div>
@@ -124,7 +114,7 @@ export function RegisterForm() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500"
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-3 text-base text-white placeholder-slate-500 outline-none sm:text-sm focus:border-blue-500"
               placeholder="vous@exemple.com"
             />
           </div>
@@ -144,7 +134,7 @@ export function RegisterForm() {
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500"
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-3 text-base text-white placeholder-slate-500 outline-none sm:text-sm focus:border-blue-500"
               placeholder="8 caractères minimum"
             />
           </div>
@@ -162,7 +152,10 @@ export function RegisterForm() {
 
       <p className="mt-6 text-center text-sm text-slate-400">
         Déjà membre ?{" "}
-        <Link href="/login" className="font-medium text-white underline underline-offset-2">
+        <Link
+          href={packId ? `/login?callbackUrl=${encodeURIComponent(dashboardUrl)}` : "/login"}
+          className="font-medium text-white underline underline-offset-2"
+        >
           Se connecter
         </Link>
       </p>

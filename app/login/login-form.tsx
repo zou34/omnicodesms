@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
 import { AuthShell } from "@/components/auth/auth-shell";
-import { GoogleIcon } from "@/components/auth/google-icon";
+import { GoogleSignIn } from "@/components/auth/google-sign-in";
 
 // NextAuth renvoie ses échecs OAuth sur cette page via ?error=... Sans ce
 // message, l'utilisateur revient sur /login sans la moindre explication : la
@@ -24,7 +24,7 @@ const OAUTH_ERRORS: Record<string, string> = {
 
 const DEFAULT_OAUTH_ERROR = "La connexion a échoué. Réessayez.";
 
-function LoginFormContent() {
+function LoginFormContent({ googleAvailable }: { googleAvailable: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams?.get("callbackUrl") ?? "/dashboard";
@@ -36,18 +36,26 @@ function LoginFormContent() {
     oauthError ? (OAUTH_ERRORS[oauthError] ?? DEFAULT_OAUTH_ERROR) : null
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
     setIsLoading(true);
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    // Une coupure réseau fait rejeter signIn : sans ce try, le bouton restait
+    // bloqué sur son indicateur de chargement, sans message.
+    let result;
+    try {
+      result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+    } catch {
+      setError("Une erreur réseau est survenue. Vérifiez votre connexion et réessayez.");
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(false);
 
@@ -72,24 +80,7 @@ function LoginFormContent() {
         </div>
       )}
 
-      <button
-        type="button"
-        disabled={isGoogleLoading}
-        onClick={() => {
-          setIsGoogleLoading(true);
-          signIn("google", { callbackUrl });
-        }}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
-      >
-        {isGoogleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
-        Continuer avec Google
-      </button>
-
-      <div className="my-6 flex items-center gap-3">
-        <div className="h-px flex-1 bg-slate-800" />
-        <span className="text-xs uppercase text-slate-500">ou</span>
-        <div className="h-px flex-1 bg-slate-800" />
-      </div>
+      <GoogleSignIn callbackUrl={callbackUrl} available={googleAvailable} showUnavailableHint />
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -105,7 +96,7 @@ function LoginFormContent() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500"
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-3 text-base text-white placeholder-slate-500 outline-none sm:text-sm focus:border-blue-500"
               placeholder="vous@exemple.com"
             />
           </div>
@@ -129,7 +120,7 @@ function LoginFormContent() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-3 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500"
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-3 text-base text-white placeholder-slate-500 outline-none sm:text-sm focus:border-blue-500"
               placeholder="••••••••"
             />
           </div>
@@ -155,10 +146,10 @@ function LoginFormContent() {
   );
 }
 
-export function LoginForm() {
+export function LoginForm({ googleAvailable }: { googleAvailable: boolean }) {
   return (
     <Suspense fallback={null}>
-      <LoginFormContent />
+      <LoginFormContent googleAvailable={googleAvailable} />
     </Suspense>
   );
 }

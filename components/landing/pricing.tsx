@@ -27,7 +27,7 @@ export function Pricing() {
               amount={amount}
               theme="light"
               cta={
-                <TierCta href="/register" featured={amount.featured}>
+                <TierCta href={`/register?pack=${amount.id}`} featured={amount.featured}>
                   Recharger
                 </TierCta>
               }

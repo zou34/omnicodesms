@@ -20,8 +20,8 @@ interface GlowingButtonBaseProps {
   /** Couleur de l'anneau néon : bleu (défaut) ou ambré (palier mis en avant). */
   tone?: "blue" | "amber";
   /**
-   * Halo extérieur atténué : pour plusieurs boutons animés côte à côte (cartes
-   * de paliers), où le halo plein deviendrait envahissant.
+   * Halo extérieur atténué et fixe : pour plusieurs boutons animés côte à côte
+   * (cartes de paliers), où le halo plein deviendrait envahissant et coûteux.
    */
   subtle?: boolean;
 }
@@ -41,6 +41,14 @@ type GlowingButtonProps = LinkVariantProps | ButtonVariantProps;
 const GLOW_GRADIENTS = {
   blue: "bg-[conic-gradient(from_0deg,transparent_0%,#22d3ee_10%,#2563eb_30%,#22d3ee_50%,transparent_65%)]",
   amber: "bg-[conic-gradient(from_0deg,transparent_0%,#fde047_10%,#f97316_30%,#fde047_50%,transparent_65%)]",
+} as const;
+
+// Halo extérieur des variantes `subtle` : fixe et uniforme. Un calque flouté
+// en rotation continue coûte cher au GPU, et les cartes de paliers en
+// affichent quatre à la fois — l'anneau net, lui, continue de tourner.
+const STATIC_HALO_GRADIENTS = {
+  blue: "bg-gradient-to-r from-cyan-400 to-blue-600",
+  amber: "bg-gradient-to-r from-yellow-300 to-orange-500",
 } as const;
 
 /**
@@ -63,12 +71,15 @@ export function GlowingButton({
 }: GlowingButtonProps) {
   const GLOW_GRADIENT = GLOW_GRADIENTS[tone];
 
-  const ExternalGlow = (
+  const ExternalGlow = subtle ? (
     <span
       aria-hidden
-      className={`absolute -z-10 rounded-full animate-spin-glow motion-reduce:animate-none ${
-        subtle ? "-inset-1.5 opacity-50 blur-lg" : "-inset-3 opacity-80 blur-xl"
-      } ${GLOW_GRADIENT}`}
+      className={`absolute -inset-1 -z-10 rounded-full opacity-40 blur-md ${STATIC_HALO_GRADIENTS[tone]}`}
+    />
+  ) : (
+    <span
+      aria-hidden
+      className={`absolute -inset-3 -z-10 rounded-full animate-spin-glow opacity-80 blur-xl motion-reduce:animate-none ${GLOW_GRADIENT}`}
     />
   );
 

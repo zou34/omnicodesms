@@ -77,3 +77,100 @@ export async function GET(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: "Une erreur interne est survenue." }, { status: 500 });
   }
 }
+
+// Plus large que le sondage n'en a besoin : un client n'annule qu'à la main.
+const CANCEL_LIMIT = 20;
+const CANCEL_WINDOW_MS = 60 * 1000;
+
+// Annulation demandée par le client, avec remboursement immédiat. Sans elle,
+// un numéro qui ne reçoit rien bloquait le solde jusqu'à son expiration
+// (10-20 min), et le client ne pouvait pas retenter avec un autre numéro.
+export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+    }
+
+    const limit = rateLimit(`order-cancel:${session.user.id}`, CANCEL_LIMIT, CANCEL_WINDOW_MS);
+    if (!limit.success) {
+      return rateLimitResponse(limit.retryAfterSeconds);
+    }
+
+    const order = await prisma.order.findUnique({ where: { id: params.id } });
+
+    if (!order || order.userId !== session.user.id) {
+      return NextResponse.json({ error: "Commande introuvable." }, { status: 404 });
+    }
+
+    // Déjà réglée (SMS reçu, expirée, annulée ailleurs) : on renvoie l'état
+    // réel, le dashboard se resynchronise dessus.
+    if (order.status !== "PENDING" || !order.providerId) {
+      return NextResponse.json(order);
+    }
+
+    const provider = getSmsProvider();
+
+    try {
+      // Un SMS arrivé entre deux sondages ne doit jamais être perdu par une
+      // annulation : on relit l'état chez le fournisseur avant d'annuler.
+      const before = await provider.getSms(order.providerId);
+      if (before.status !== "PENDING") {
+        const updated = await applyOrderOutcome(
+          order,
+          SMS_STATUS_TO_ORDER_STATUS[before.status],
+          before.code,
+          before.fullText
+        );
+        return NextResponse.json(updated);
+      }
+
+      const result = await provider.cancelOrder(order.providerId);
+
+      if (result.success) {
+        // Remboursement par la logique partagée (transition gardée, écriture
+        // REFUND unique) : un sondage ou le cron concurrent ne peut pas
+        // rembourser une seconde fois.
+        const updated = await applyOrderOutcome(order, "CANCELLED", null, null);
+        return NextResponse.json(updated);
+      }
+
+      if (result.status === "PENDING") {
+        // GrizzlySMS refuse toute annulation dans les 2 premières minutes
+        // (EARLY_CANCEL_DENIED) : rien n'a changé, le client réessaiera.
+        return NextResponse.json(
+          {
+            error: "Ce numéro ne peut pas encore être annulé. Réessayez dans un instant.",
+            code: "CANCEL_TOO_EARLY",
+          },
+          { status: 409 }
+        );
+      }
+
+      // Refus pour une autre raison (SMS arrivé entre-temps, expiration) :
+      // on applique l'issue réelle.
+      const after = await provider.getSms(order.providerId);
+      const updated = await applyOrderOutcome(
+        order,
+        SMS_STATUS_TO_ORDER_STATUS[after.status],
+        after.code,
+        after.fullText
+      );
+      return NextResponse.json(updated);
+    } catch (error) {
+      if (error instanceof ProviderError) {
+        // Message neutre, comme partout : le libellé brut nomme le fournisseur.
+        console.error(`[DELETE /api/orders/:id] ${error.code} pour ${order.id}: ${error.message}`);
+        return NextResponse.json(
+          { error: "Annulation momentanément impossible. Réessayez dans quelques instants.", code: error.code },
+          { status: 502 }
+        );
+      }
+      throw error;
+    }
+  } catch (error) {
+    console.error("[DELETE /api/orders/:id]", error);
+    return NextResponse.json({ error: "Une erreur interne est survenue." }, { status: 500 });
+  }
+}

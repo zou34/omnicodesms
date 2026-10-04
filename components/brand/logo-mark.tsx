@@ -25,7 +25,6 @@ export function LogoMark({ className, withBackground = false }: { className?: st
         fill={`url(#${id}-bubble)`}
       />
       <path
-        className="logo-bolt"
         d="M286 136L192 264H248L226 346L320 212H264Z"
         fill={`url(#${id}-bolt)`}
         stroke="#0f172a"

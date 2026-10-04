@@ -34,7 +34,7 @@ export function Toast({ toast, onDismiss, durationMs = 4000 }: ToastProps) {
     <div
       role="status"
       aria-live="polite"
-      className={`fixed bottom-6 right-6 z-50 flex max-w-sm items-start gap-3 rounded-xl border px-4 py-3 shadow-2xl animate-toast-in ${
+      className={`fixed inset-x-4 bottom-4 z-50 flex items-start sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm gap-3 rounded-xl border px-4 py-3 shadow-2xl animate-toast-in ${
         isSuccess
           ? "border-emerald-500/30 bg-emerald-950 text-emerald-100"
           : "border-red-500/30 bg-red-950 text-red-100"

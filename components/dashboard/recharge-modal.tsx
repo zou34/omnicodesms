@@ -11,6 +11,8 @@ import { computePromoBonus, normalizePromoCode, type PromoRules } from "@/lib/pr
 interface RechargeModalProps {
   open: boolean;
   onClose: () => void;
+  /** Palier choisi sur la page d'accueil, mis en avant et placé en tête. */
+  highlightedAmountId?: string | null;
 }
 
 interface AppliedPromo extends PromoRules {
@@ -18,7 +20,13 @@ interface AppliedPromo extends PromoRules {
   label: string;
 }
 
-export function RechargeModal({ open, onClose }: RechargeModalProps) {
+export function RechargeModal({ open, onClose, highlightedAmountId = null }: RechargeModalProps) {
+  // Sur mobile les cartes s'empilent (~450 px chacune) : celle qui compte —
+  // le palier choisi, à défaut le palier recommandé — passe en tête au lieu
+  // d'attendre deux écrans plus bas. Ordre d'origine dès 2 colonnes.
+  const leadAmountId =
+    highlightedAmountId ?? RECHARGE_AMOUNTS.find((amount) => amount.featured)?.id ?? null;
+
   const [payingAmountId, setPayingAmountId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [promoInput, setPromoInput] = useState("");
@@ -172,7 +180,7 @@ export function RechargeModal({ open, onClose }: RechargeModalProps) {
                 placeholder="Vous avez un code promo ?"
                 autoComplete="off"
                 maxLength={32}
-                className="field-glow flex-1 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 font-mono text-sm uppercase text-white outline-none placeholder:font-sans placeholder:normal-case placeholder:text-slate-500"
+                className="field-glow flex-1 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 font-mono text-base uppercase sm:text-sm text-white outline-none placeholder:font-sans placeholder:normal-case placeholder:text-slate-500"
               />
               <button
                 type="submit"
@@ -204,6 +212,8 @@ export function RechargeModal({ open, onClose }: RechargeModalProps) {
                 key={amount.id}
                 amount={amount}
                 theme="dark"
+                selected={amount.id === highlightedAmountId}
+                className={amount.id === leadAmountId ? "order-first sm:order-none" : ""}
                 cta={
                   <div className="space-y-2">
                     {appliedPromo && (

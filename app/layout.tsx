@@ -1,20 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import localFont from "next/font/local";
 import "./globals.css";
 
 import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
+// Pas de police web : le site s'affiche en police système (globals.css), ce
+// qui évite ~130 Ko de fichiers Geist préchargés sur chaque page en 3G/4G —
+// ils ne servaient qu'à l'ancien écran d'introduction.
 
 // `||`, not `??`: Vercel can have this var present-but-empty (not just
 // unset) if it's misconfigured in the dashboard — an empty string isn't
@@ -70,9 +62,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className="antialiased">
         <AuthSessionProvider>{children}</AuthSessionProvider>
         <ServiceWorkerRegister />
       </body>

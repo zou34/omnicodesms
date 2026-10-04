@@ -110,7 +110,7 @@ function ResetPasswordFormContent() {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500"
+            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-base text-white placeholder-slate-500 outline-none sm:text-sm focus:border-blue-500"
             placeholder="8 caractères minimum"
           />
         </div>
@@ -126,7 +126,7 @@ function ResetPasswordFormContent() {
             autoComplete="new-password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500"
+            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-base text-white placeholder-slate-500 outline-none sm:text-sm focus:border-blue-500"
             placeholder="••••••••"
           />
         </div>

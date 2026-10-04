@@ -11,6 +11,10 @@ interface TierCardProps {
   theme: "light" | "dark";
   /** Bouton d'action (lien d'inscription ou déclencheur de paiement). */
   cta: ReactNode;
+  /** Classes ajoutées au cadre (ordre dans la grille, anneau de sélection). */
+  className?: string;
+  /** Pastille « Votre sélection » : palier choisi sur la page d'accueil. */
+  selected?: boolean;
 }
 
 /**
@@ -21,7 +25,7 @@ interface TierCardProps {
  * Prix d'ancrage : la valeur barrée n'apparaît que si le palier porte un
  * bonus réel (bonusFcfa > 0), et elle vaut exactement le crédit reçu.
  */
-export function TierCard({ amount, theme, cta }: TierCardProps) {
+export function TierCard({ amount, theme, cta, className = "", selected = false }: TierCardProps) {
   const dark = theme === "dark";
   const hasBonus = amount.bonusFcfa > 0;
 
@@ -34,8 +38,17 @@ export function TierCard({ amount, theme, cta }: TierCardProps) {
       : "border border-slate-200 bg-white shadow-sm";
 
   return (
-    <div className={`relative flex h-full flex-col rounded-2xl p-6 transition ${frame} ${amount.featured ? "z-10" : ""}`}>
-      {amount.featured && (
+    <div
+      className={`relative flex h-full flex-col rounded-2xl p-6 transition ${frame} ${amount.featured ? "z-10" : ""} ${
+        selected ? "ring-2 ring-blue-400 ring-offset-2 ring-offset-slate-900" : ""
+      } ${className}`}
+    >
+      {selected ? (
+        <span className="absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full bg-blue-500 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-500/30">
+          <Check className="h-3 w-3" />
+          Votre sélection
+        </span>
+      ) : amount.featured && (
         <span className="absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-950 shadow-lg shadow-amber-500/30">
           <Sparkles className="h-3 w-3" />
           Recommandé

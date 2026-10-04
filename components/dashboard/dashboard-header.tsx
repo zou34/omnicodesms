@@ -34,21 +34,22 @@ export function DashboardHeader({
             <span className="whitespace-nowrap">{balance.toLocaleString("fr-FR")} FCFA</span>
           </div>
 
-          {/* aria-label indispensable : sous le breakpoint `sm` les deux
-              libellés sont masqués et le bouton n'était plus qu'une icône
-              sans nom accessible (invisible pour un lecteur d'écran). */}
+          {/* Libellé visible dès le mobile : c'est l'action qui rapporte, une
+              icône seule ne se lisait pas comme un bouton de recharge. */}
           <button
             type="button"
             onClick={onOpenRecharge}
             aria-label="Recharger mon solde"
-            className="btn-glow flex items-center gap-1.5 rounded-full bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 sm:px-4 sm:text-sm"
+            className="btn-glow flex items-center gap-1.5 rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 sm:px-4 sm:text-sm"
           >
             <PlusCircle className="h-4 w-4 shrink-0" />
             <span className="hidden md:inline">Recharger mon solde</span>
-            <span className="hidden sm:inline md:hidden">Recharger</span>
+            <span className="md:hidden">Recharger</span>
           </button>
 
-          <InstallPwaButton className="flex shrink-0 items-center justify-center rounded-full border border-slate-700 p-2 text-slate-300 transition hover:bg-slate-800 hover:text-white" />
+          {/* Masqué sous `sm` pour laisser la place au libellé « Recharger » ;
+              l'installation reste proposée dans la barre mobile de l'accueil. */}
+          <InstallPwaButton className="hidden shrink-0 items-center justify-center rounded-full border border-slate-700 p-2 text-slate-300 transition hover:bg-slate-800 hover:text-white sm:flex" />
 
 
           <div className="hidden text-right lg:block">
