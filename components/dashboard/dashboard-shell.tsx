@@ -9,7 +9,9 @@ import { PaymentStatusBanner } from "@/components/dashboard/payment-status-banne
 import { PurchasePanel } from "@/components/dashboard/purchase-panel";
 import { RechargeModal } from "@/components/dashboard/recharge-modal";
 import type { CountryVM, OrderVM, PricingVM, ServiceVM } from "@/components/dashboard/types";
+import { usePaymentSync } from "@/components/dashboard/use-payment-sync";
 import { WelcomeModal } from "@/components/dashboard/welcome-modal";
+import { trackMetaEventOnce } from "@/lib/meta-pixel";
 
 interface DashboardShellProps {
   userName: string | null;
@@ -17,6 +19,8 @@ interface DashboardShellProps {
   initialBalance: string;
   /** Palier choisi sur la page d'accueil avant l'inscription (?pack=). */
   initialPackId: string | null;
+  /** Première arrivée après la création du compte (?welcome=1). */
+  isNewUser: boolean;
   countries: CountryVM[];
   services: ServiceVM[];
   pricing: PricingVM[];
@@ -28,6 +32,7 @@ export function DashboardShell({
   userEmail,
   initialBalance,
   initialPackId,
+  isNewUser,
   countries,
   services,
   pricing,
@@ -36,6 +41,9 @@ export function DashboardShell({
   const router = useRouter();
   const [balance, setBalance] = useState(Number(initialBalance));
   const [orders, setOrders] = useState<OrderVM[]>(initialOrders);
+  // Appelé avant les autres effets de ce composant : il retire ?payment/&ref
+  // de l'URL avant que celui de ?pack ne la relise.
+  const paymentSync = usePaymentSync(setBalance);
   // Lifted above DashboardHeader so PurchasePanel can also open it — e.g.
   // when a purchase fails specifically because the user's own balance is
   // too low, not because a provider is out of stock or unreachable.
@@ -44,6 +52,13 @@ export function DashboardShell({
   // page d'accueil : il a exprimé son intention, on ne la lui refait pas
   // reformuler (ni via la modale de bienvenue, ni en re-choisissant le palier).
   const [isRechargeOpen, setIsRechargeOpen] = useState(initialPackId !== null);
+
+  // Conversion « inscription » du Pixel Meta. Envoyée ici plutôt que dans le
+  // formulaire : les deux parcours (e-mail et première connexion Google via
+  // pages.newUser) aboutissent tous deux sur /dashboard?welcome=1.
+  useEffect(() => {
+    if (isNewUser) trackMetaEventOnce("complete-registration", "CompleteRegistration");
+  }, [isNewUser]);
 
   useEffect(() => {
     if (!initialPackId) return;
@@ -55,9 +70,9 @@ export function DashboardShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // DashboardShell doesn't remount across a router.refresh() (triggered by
-  // PaymentStatusBanner once a payment redirect lands) — so `balance`
-  // needs to be explicitly re-synced when the server sends a fresh
+  // DashboardShell doesn't remount across a server re-render (the
+  // router.replace calls that strip ?pack / ?welcome) — so `balance` needs
+  // to be explicitly re-synced when the server sends a fresh
   // `initialBalance`, rather than relying on useState's one-time init.
   useEffect(() => {
     setBalance(Number(initialBalance));
@@ -98,9 +113,7 @@ export function DashboardShell({
         onOpenRecharge={() => setIsRechargeOpen(true)}
       />
 
-      <Suspense fallback={null}>
-        <PaymentStatusBanner />
-      </Suspense>
+      <PaymentStatusBanner state={paymentSync.state} onDismiss={paymentSync.dismiss} />
 
       <main className="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 sm:py-10">
         <PurchasePanel

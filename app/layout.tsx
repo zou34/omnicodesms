@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
+import { MetaPixel } from "@/components/analytics/meta-pixel";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 
@@ -65,6 +66,7 @@ export default function RootLayout({
       <body className="antialiased">
         <AuthSessionProvider>{children}</AuthSessionProvider>
         <ServiceWorkerRegister />
+        <MetaPixel />
       </body>
     </html>
   );

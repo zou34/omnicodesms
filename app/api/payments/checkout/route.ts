@@ -106,7 +106,9 @@ export async function POST(request: Request) {
         amountFcfa: rechargeAmount.priceFcfa,
         description: `Recharge FlashCodeSMS — ${rechargeAmount.priceFcfa} FCFA`,
         customerEmail: session.user.email ?? "",
-        returnUrl: `${APP_URL}/dashboard?payment=success`,
+        // `ref` permet au dashboard de suivre CETTE recharge jusqu'à sa
+        // confirmation par le webhook (app/api/payments/status/route.ts).
+        returnUrl: `${APP_URL}/dashboard?payment=success&ref=${encodeURIComponent(reference)}`,
         cancelUrl: `${APP_URL}/dashboard?payment=cancelled`,
       });
 

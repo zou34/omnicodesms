@@ -3,9 +3,11 @@
 import { Loader2, ShieldCheck, Tag, X, Zap } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { savePendingCheckout } from "@/components/dashboard/use-payment-sync";
 import { TierCard, TierCta } from "@/components/pricing/tier-card";
 import { Toast, type ToastState } from "@/components/ui/toast";
-import { formatFcfa, RECHARGE_AMOUNTS } from "@/lib/packs";
+import { META_PIXEL_CURRENCY, trackMetaEvent } from "@/lib/meta-pixel";
+import { formatFcfa, getRechargeAmountById, RECHARGE_AMOUNTS } from "@/lib/packs";
 import { computePromoBonus, normalizePromoCode, type PromoRules } from "@/lib/promo-rules";
 
 interface RechargeModalProps {
@@ -90,6 +92,19 @@ export function RechargeModal({ open, onClose, highlightedAmountId = null }: Rec
     setPayingAmountId(amountId);
     setError(null);
 
+    // Envoyé dès le clic, pas après la réponse : la redirection vers SasPay
+    // qui suit couperait la requête du pixel encore en vol.
+    const rechargeAmount = getRechargeAmountById(amountId);
+    if (rechargeAmount) {
+      trackMetaEvent("InitiateCheckout", {
+        value: rechargeAmount.priceFcfa,
+        currency: META_PIXEL_CURRENCY,
+        content_ids: [rechargeAmount.id],
+        content_type: "product",
+        num_items: 1,
+      });
+    }
+
     try {
       const response = await fetch("/api/payments/checkout", {
         method: "POST",
@@ -106,6 +121,9 @@ export function RechargeModal({ open, onClose, highlightedAmountId = null }: Rec
         return;
       }
 
+      // Retrouvée au retour sur l'application même sans la redirection de
+      // SasPay (Précédent, PWA rouverte) : voir use-payment-sync.ts.
+      if (typeof data.reference === "string") savePendingCheckout(data.reference);
       window.location.href = data.checkoutUrl;
     } catch {
       setError("Une erreur réseau est survenue.");

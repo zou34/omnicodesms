@@ -28,7 +28,7 @@ function resolvePackId(searchParams: { pack?: string; callbackUrl?: string }): s
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { pack?: string; callbackUrl?: string };
+  searchParams: { pack?: string; callbackUrl?: string; welcome?: string };
 }) {
   const session = await getServerSession(authOptions);
 
@@ -62,6 +62,7 @@ export default async function DashboardPage({
       userEmail={user.email}
       initialBalance={user.balance.toString()}
       initialPackId={resolvePackId(searchParams)}
+      isNewUser={searchParams.welcome === "1"}
       countries={sortCountriesForDisplay(
         countries.map((country) => ({
           id: country.id,

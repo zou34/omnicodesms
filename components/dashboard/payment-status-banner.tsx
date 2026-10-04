@@ -1,76 +1,58 @@
 "use client";
 
-import { CheckCircle2, Loader2, X, XCircle } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { CheckCircle2, Clock, Loader2, X, XCircle } from "lucide-react";
 
-// Shown when the browser lands back on /dashboard after a gateway
-// redirect (see the `return_url`/`cancel_url` set in
-// app/api/payments/checkout/route.ts). The balance itself is only ever
-// credited by app/api/webhooks/payment/route.ts, which may not have run
-// yet by the time this page loads — so "success" here means "payment
-// confirmed by the gateway's redirect", not "balance already updated".
-// A single delayed refresh gives the webhook a moment to land before we
-// re-fetch the server-rendered balance.
-export function PaymentStatusBanner() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  // Captured once at mount: the cleanup effect below rewrites the URL
-  // (stripping `?payment=`), which makes `useSearchParams()` re-render
-  // with an empty value — reading it live here would make the banner
-  // vanish right after it appears.
-  const [payment] = useState(() => searchParams?.get("payment") ?? null);
-  const [dismissed, setDismissed] = useState(false);
+import type { PaymentSyncState } from "@/components/dashboard/use-payment-sync";
 
-  useEffect(() => {
-    if (payment !== "success") return;
+// Retour d'une recharge SasPay, tel que suivi par usePaymentSync : le
+// message ne parle de solde crédité qu'une fois le webhook réellement passé,
+// jamais sur la seule foi de la redirection.
+const MESSAGES: Record<Exclude<PaymentSyncState["phase"], "idle">, string> = {
+  checking: "Paiement reçu — confirmation en cours, votre solde va se mettre à jour…",
+  credited: "Recharge confirmée — votre solde est à jour.",
+  delayed:
+    "Votre opérateur n'a pas encore confirmé le paiement. Votre solde sera crédité automatiquement dès sa confirmation.",
+  failed: "Le paiement n'a pas abouti — aucun montant n'a été crédité.",
+  cancelled: "Paiement annulé — aucun montant n'a été débité.",
+};
 
-    const timer = setTimeout(() => router.refresh(), 2500);
-    return () => clearTimeout(timer);
-  }, [payment, router]);
+interface PaymentStatusBannerProps {
+  state: PaymentSyncState;
+  onDismiss: () => void;
+}
 
-  useEffect(() => {
-    if (!payment) return;
-    // Drop the query param so a manual page refresh doesn't re-show this.
-    const url = new URL(window.location.href);
-    url.searchParams.delete("payment");
-    router.replace(url.pathname + url.search, { scroll: false });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+export function PaymentStatusBanner({ state, onDismiss }: PaymentStatusBannerProps) {
+  if (state.phase === "idle") return null;
 
-  if (!payment || dismissed) return null;
+  const tone =
+    state.phase === "credited" || state.phase === "checking"
+      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+      : state.phase === "delayed"
+        ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+        : "border-red-500/30 bg-red-500/10 text-red-300";
 
-  const isSuccess = payment === "success";
+  const Icon =
+    state.phase === "checking"
+      ? Loader2
+      : state.phase === "credited"
+        ? CheckCircle2
+        : state.phase === "delayed"
+          ? Clock
+          : XCircle;
 
   return (
     <div
-      className={`mx-auto mt-6 flex max-w-4xl items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
-        isSuccess
-          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-          : "border-red-500/30 bg-red-500/10 text-red-300"
-      }`}
+      role="status"
+      aria-live="polite"
+      className={`mx-auto mt-6 flex max-w-4xl items-start gap-3 rounded-xl border px-4 py-3 text-sm ${tone}`}
     >
-      {isSuccess ? (
-        <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
-      ) : (
-        <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
-      )}
+      <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${state.phase === "checking" ? "animate-spin" : ""}`} />
 
-      <p className="flex-1">
-        {isSuccess ? (
-          <>
-            <CheckCircle2 className="mr-1 inline h-4 w-4 -translate-y-px" />
-            Paiement confirmé — votre solde sera mis à jour automatiquement dans quelques
-            secondes.
-          </>
-        ) : (
-          "Paiement annulé — aucun montant n'a été débité."
-        )}
-      </p>
+      <p className="flex-1">{MESSAGES[state.phase]}</p>
 
       <button
         type="button"
-        onClick={() => setDismissed(true)}
+        onClick={onDismiss}
         className="shrink-0 rounded p-0.5 opacity-70 transition hover:opacity-100"
         aria-label="Fermer"
       >
