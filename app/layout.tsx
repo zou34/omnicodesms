@@ -24,9 +24,14 @@ export const metadata: Metadata = {
   title: SITE_TITLE,
   description: SITE_DESCRIPTION,
   applicationName: "FlashCodeSMS",
-  // Rendu en <meta name="google-site-verification"> sur toutes les pages :
-  // prouve à Google Search Console que le domaine nous appartient.
-  verification: { google: "Y0mSBlBh_8f3L2MymTWSa1lpwP6OQjqFbVCK2Ng6Itc" },
+  // Rendu en <meta name="google-site-verification"> et
+  // <meta name="facebook-domain-verification"> sur toutes les pages : prouve
+  // à Google Search Console et au Business Manager Meta que le domaine nous
+  // appartient.
+  verification: {
+    google: "Y0mSBlBh_8f3L2MymTWSa1lpwP6OQjqFbVCK2Ng6Itc",
+    other: { "facebook-domain-verification": "1dxo990jidk8wlj72v0yl6h5pl2642" },
+  },
   keywords: [
     "numéro virtuel",
     "recevoir SMS en ligne",
