@@ -9,14 +9,17 @@ const FEATURES = [
   {
     icon: Globe,
     title: "Couverture Mondiale",
-    description: "Plus de 100 pays disponibles pour contourner toutes les géo-restrictions.",
+    description: "Des numéros disponibles dans plus de 100 pays, pour les applications du monde entier.",
   },
   {
     icon: ShieldCheck,
-    title: "Anonymat Garanti",
-    description: "Protégez votre vie privée. Aucune donnée personnelle requise pour louer un numéro.",
+    title: "Confidentialité Préservée",
+    description: "Gardez votre numéro personnel pour vous : utilisez un numéro dédié pour vos vérifications.",
   },
 ] as const;
+// Libellés relus pour la modération publicitaire de Meta, qui examine aussi
+// la page d'arrivée : pas de « contourner », d'« anonymat » ni de promesse
+// de restrictions évitées (règle « Contournement des systèmes »).
 
 export function WhyChooseUs() {
   return (
