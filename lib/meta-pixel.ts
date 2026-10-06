@@ -7,7 +7,7 @@
 
 // `||`, pas `??` — même raison que NEXT_PUBLIC_APP_URL dans app/layout.tsx :
 // une variable présente mais vide sur Vercel doit aussi retomber sur l'ID.
-export const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID || "1653292166501672";
+export const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID || "4681937055286289";
 
 // Devise ISO 4217 des montants envoyés à Meta : nos paliers sont libellés en
 // franc CFA ouest-africain, exactement la devise encaissée par SasPay
