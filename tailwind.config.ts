@@ -29,6 +29,25 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(8px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        // Démo « Comment ça marche » (components/landing/how-it-works.tsx).
+        // Uniquement opacity/transform : composités par le GPU, fluides sur
+        // les Android d'entrée de gamme.
+        "fade-up": {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "fade-out": {
+          "0%": { opacity: "1" },
+          "100%": { opacity: "0" },
+        },
+        "step-progress": {
+          "0%": { transform: "scaleX(0)" },
+          "100%": { transform: "scaleX(1)" },
+        },
+        tap: {
+          "0%": { opacity: "0.7", transform: "scale(0.4)" },
+          "100%": { opacity: "0", transform: "scale(1.6)" },
+        },
       },
       animation: {
         float: "float 4.5s ease-in-out infinite",
@@ -37,6 +56,10 @@ const config: Config = {
         "spin-glow": "spin 3.5s linear infinite",
         marquee: "marquee 70s linear infinite",
         "toast-in": "toast-in 0.2s ease-out",
+        "fade-up": "fade-up 0.5s ease-out both",
+        "fade-out": "fade-out 0.25s ease-out forwards",
+        "step-progress": "step-progress linear forwards",
+        tap: "tap 1.1s ease-out 2",
       },
     },
   },
