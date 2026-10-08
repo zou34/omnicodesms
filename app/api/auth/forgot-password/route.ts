@@ -58,26 +58,29 @@ export async function POST(request: Request) {
       return genericResponse;
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: { password: true },
+    // Insensible à la casse, et le jeton est ensuite rattaché à l'adresse
+    // EXACTE du compte (user.email) : reset-password met à jour le compte par
+    // cette adresse, qui peut contenir des majuscules pour un compte ancien.
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      select: { email: true, password: true },
     });
 
     // No account, or a Google-only account with no password to reset —
     // nothing to do, but still answer identically to avoid leaking either
     // fact through response timing/content.
-    if (user?.password) {
+    if (user?.password && user.email) {
       // Clear any previous unused tokens for this email first — only the
       // most recently requested link should work.
-      await prisma.verificationToken.deleteMany({ where: { identifier: email } });
+      await prisma.verificationToken.deleteMany({ where: { identifier: user.email } });
 
       const token = randomBytes(32).toString("hex");
       await prisma.verificationToken.create({
-        data: { identifier: email, token, expires: new Date(Date.now() + TOKEN_TTL_MS) },
+        data: { identifier: user.email, token, expires: new Date(Date.now() + TOKEN_TTL_MS) },
       });
 
       const resetUrl = `${APP_URL}/reset-password?token=${token}`;
-      await getEmailProvider().sendPasswordResetEmail({ to: email, resetUrl });
+      await getEmailProvider().sendPasswordResetEmail({ to: user.email, resetUrl });
     }
 
     return genericResponse;

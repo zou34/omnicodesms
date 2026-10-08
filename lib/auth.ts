@@ -13,7 +13,9 @@ import { getClientIp, rateLimit } from "@/lib/rate-limit";
 // wouldn't since each individual email would only be tried once or twice.
 const LOGIN_EMAIL_LIMIT = 5;
 const LOGIN_EMAIL_WINDOW_MS = 10 * 60 * 1000;
-const LOGIN_IP_LIMIT = 20;
+// Large par IP : les opérateurs mobiles d'Afrique de l'Ouest partagent une
+// même IP entre des milliers d'abonnés (CGNAT) — voir app/api/register.
+const LOGIN_IP_LIMIT = 60;
 const LOGIN_IP_WINDOW_MS = 10 * 60 * 1000;
 
 export const authOptions: NextAuthOptions = {
@@ -71,8 +73,11 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Identifiants invalides.");
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+        // Insensible à la casse : « Awa@Gmail.com » tapé à la connexion doit
+        // retrouver le compte, y compris ceux enregistrés avant que
+        // l'inscription ne normalise l'adresse en minuscules.
+        const user = await prisma.user.findFirst({
+          where: { email: { equals: credentials.email.trim(), mode: "insensitive" } },
         });
 
         if (!user || !user.password) {

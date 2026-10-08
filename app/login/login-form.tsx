@@ -24,10 +24,28 @@ const OAUTH_ERRORS: Record<string, string> = {
 
 const DEFAULT_OAUTH_ERROR = "La connexion a échoué. Réessayez.";
 
+/**
+ * Ramène ?callbackUrl= à un chemin de ce site. Sans ça, un lien piégé
+ * (/login?callbackUrl=https://faux-site...) renverrait la victime, juste
+ * après sa connexion, vers une copie du site prête à lui redemander ses
+ * identifiants. Une URL absolue (celle que pose le middleware) garde
+ * seulement son chemin.
+ */
+function toSafeCallbackUrl(value: string | null | undefined): string {
+  if (!value) return "/dashboard";
+  try {
+    const url = new URL(value, "https://placeholder.invalid");
+    if (url.protocol !== "https:" && url.protocol !== "http:") return "/dashboard";
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return "/dashboard";
+  }
+}
+
 function LoginFormContent({ googleAvailable }: { googleAvailable: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams?.get("callbackUrl") ?? "/dashboard";
+  const callbackUrl = toSafeCallbackUrl(searchParams?.get("callbackUrl"));
   const oauthError = searchParams?.get("error") ?? null;
 
   const [email, setEmail] = useState("");

@@ -25,6 +25,8 @@ function resolvePackId(searchParams: { pack?: string; callbackUrl?: string }): s
   return getRechargeAmountById(candidate ?? "")?.id ?? null;
 }
 
+const NEW_ACCOUNT_WINDOW_MS = 30 * 60 * 1000;
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -39,7 +41,7 @@ export default async function DashboardPage({
   const [user, countries, services, pricing, orders] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { name: true, email: true, balance: true },
+      select: { name: true, email: true, balance: true, createdAt: true },
     }),
     prisma.country.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
     prisma.service.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
@@ -62,7 +64,10 @@ export default async function DashboardPage({
       userEmail={user.email}
       initialBalance={user.balance.toString()}
       initialPackId={resolvePackId(searchParams)}
-      isNewUser={searchParams.welcome === "1"}
+      // ?welcome=1 seul ne prouve rien (lien rouvert, retapé à la main) :
+      // la conversion « inscription » envoyée à Meta exige un compte créé à
+      // l'instant, pour ne compter que de vraies inscriptions.
+      isNewUser={searchParams.welcome === "1" && Date.now() - user.createdAt.getTime() < NEW_ACCOUNT_WINDOW_MS}
       countries={sortCountriesForDisplay(
         countries.map((country) => ({
           id: country.id,
