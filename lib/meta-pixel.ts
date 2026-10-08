@@ -38,15 +38,50 @@ declare global {
   }
 }
 
-export function trackMetaEvent(event: StandardEvent, params?: EventParams, eventId?: string) {
-  if (typeof window === "undefined" || typeof window.fbq !== "function") return;
-  try {
-    // `eventID` permet à Meta de dédoublonner un même événement envoyé deux
-    // fois (rechargement de page, future API Conversions côté serveur).
-    window.fbq("track", event, params, eventId ? { eventID: eventId } : undefined);
-  } catch {
-    // Le suivi publicitaire ne doit jamais faire échouer l'interface.
+// Au chargement complet d'une page, les effets de la page (ex. l'inscription
+// détectée sur /dashboard?welcome=1 après une connexion Google) s'exécutent
+// AVANT celui du composant MetaPixel, placé après eux dans le layout : `fbq`
+// n'existe pas encore. Ces événements sont mis en attente puis envoyés dès que
+// le pixel est défini, au lieu d'être perdus.
+const PIXEL_WAIT_INTERVAL_MS = 100;
+// Au-delà, le pixel est vraisemblablement bloqué (bloqueur de publicité).
+const PIXEL_WAIT_TIMEOUT_MS = 10_000;
+
+const pendingEvents: Array<() => void> = [];
+let waitTimer: ReturnType<typeof setInterval> | undefined;
+
+function whenPixelReady(send: () => void) {
+  if (typeof window.fbq === "function") {
+    send();
+    return;
   }
+
+  pendingEvents.push(send);
+  if (waitTimer) return;
+
+  const startedAt = Date.now();
+  waitTimer = setInterval(() => {
+    const ready = typeof window.fbq === "function";
+    if (!ready && Date.now() - startedAt < PIXEL_WAIT_TIMEOUT_MS) return;
+
+    clearInterval(waitTimer);
+    waitTimer = undefined;
+    const queued = pendingEvents.splice(0);
+    if (ready) queued.forEach((flush) => flush());
+  }, PIXEL_WAIT_INTERVAL_MS);
+}
+
+export function trackMetaEvent(event: StandardEvent, params?: EventParams, eventId?: string) {
+  if (typeof window === "undefined") return;
+  whenPixelReady(() => {
+    try {
+      // `eventID` permet à Meta de dédoublonner un même événement envoyé deux
+      // fois (rechargement de page, future API Conversions côté serveur).
+      window.fbq?.("track", event, params, eventId ? { eventID: eventId } : undefined);
+    } catch {
+      // Le suivi publicitaire ne doit jamais faire échouer l'interface.
+    }
+  });
 }
 
 // Événements déjà envoyés dans cet onglet : protège des effets rejoués
