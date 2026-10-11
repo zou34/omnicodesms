@@ -215,9 +215,15 @@ export function usePaymentSync(onBalance: (balance: number) => void) {
           return;
         }
 
-        if (transaction.status !== "PENDING") {
-          settle(reference, transaction.status, Number(transaction.amount), Number(data.balance));
+        if (transaction.status === "SUCCESS") {
+          settle(reference, "SUCCESS", Number(transaction.amount), Number(data.balance));
+        } else if (transaction.status === "FAILED" && !isReturnRef(reference)) {
+          settle(reference, "FAILED", Number(transaction.amount), Number(data.balance));
         }
+        // FAILED sur la recharge dont le client revient par la redirection de
+        // succès : c'est l'échec d'une tentative précédente sur la même page
+        // SasPay (« Réessayer »). La réussite qui a déclenché la redirection
+        // arrive juste derrière — on continue d'interroger.
       } catch {
         // Hors ligne ou réponse illisible : nouvel essai au prochain tour.
       } finally {
