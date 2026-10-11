@@ -3,6 +3,7 @@
 import { Loader2, ShieldCheck, Tag, X, Zap } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { OpenInBrowserHint } from "@/components/dashboard/open-in-browser-hint";
 import { savePendingCheckout } from "@/components/dashboard/use-payment-sync";
 import { TierCard, TierCta } from "@/components/pricing/tier-card";
 import { Toast, type ToastState } from "@/components/ui/toast";
@@ -15,6 +16,8 @@ interface RechargeModalProps {
   onClose: () => void;
   /** Palier choisi sur la page d'accueil, mis en avant et placé en tête. */
   highlightedAmountId?: string | null;
+  /** Navigateur intégré d'une appli : on recommande d'ouvrir le site ailleurs pour Wave. */
+  inAppBrowser?: boolean;
 }
 
 interface AppliedPromo extends PromoRules {
@@ -22,7 +25,7 @@ interface AppliedPromo extends PromoRules {
   label: string;
 }
 
-export function RechargeModal({ open, onClose, highlightedAmountId = null }: RechargeModalProps) {
+export function RechargeModal({ open, onClose, highlightedAmountId = null, inAppBrowser = false }: RechargeModalProps) {
   // Sur mobile les cartes s'empilent (~450 px chacune) : celle qui compte —
   // le palier choisi, à défaut le palier recommandé — passe en tête au lieu
   // d'attendre deux écrans plus bas. Ordre d'origine dès 2 colonnes.
@@ -172,6 +175,8 @@ export function RechargeModal({ open, onClose, highlightedAmountId = null }: Rec
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {inAppBrowser && <OpenInBrowserHint packId={highlightedAmountId} />}
 
         {/* Code promo : vérifié ici pour l'aperçu, revérifié au paiement. */}
         <div className="mt-6 rounded-xl border border-slate-800 bg-slate-950/60 p-4">

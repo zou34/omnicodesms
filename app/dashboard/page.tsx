@@ -1,7 +1,9 @@
 import { getServerSession } from "next-auth";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth";
+import { isInAppBrowser } from "@/lib/in-app-browser";
 import { isPriorityCountry, sortCountriesForDisplay, toFrenchCountryName } from "@/lib/countries";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { getRechargeAmountById } from "@/lib/packs";
@@ -64,6 +66,7 @@ export default async function DashboardPage({
       userEmail={user.email}
       initialBalance={user.balance.toString()}
       initialPackId={resolvePackId(searchParams)}
+      inAppBrowser={isInAppBrowser(headers().get("user-agent"))}
       // ?welcome=1 seul ne prouve rien (lien rouvert, retapé à la main) :
       // la conversion « inscription » envoyée à Meta exige un compte créé à
       // l'instant, pour ne compter que de vraies inscriptions.

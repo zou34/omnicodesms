@@ -21,6 +21,8 @@ interface DashboardShellProps {
   initialPackId: string | null;
   /** Première arrivée après la création du compte (?welcome=1). */
   isNewUser: boolean;
+  /** Navigateur intégré (Facebook, Instagram...) : Wave s'y ouvre mal. */
+  inAppBrowser: boolean;
   countries: CountryVM[];
   services: ServiceVM[];
   pricing: PricingVM[];
@@ -33,6 +35,7 @@ export function DashboardShell({
   initialBalance,
   initialPackId,
   isNewUser,
+  inAppBrowser,
   countries,
   services,
   pricing,
@@ -134,6 +137,7 @@ export function DashboardShell({
         open={isRechargeOpen}
         onClose={() => setIsRechargeOpen(false)}
         highlightedAmountId={initialPackId}
+        inAppBrowser={inAppBrowser}
       />
 
       {!initialPackId && (
