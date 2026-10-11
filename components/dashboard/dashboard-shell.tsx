@@ -7,7 +7,7 @@ import { ActiveOrders } from "@/components/dashboard/active-orders";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { PaymentStatusBanner } from "@/components/dashboard/payment-status-banner";
 import { PurchasePanel } from "@/components/dashboard/purchase-panel";
-import { RechargeModal } from "@/components/dashboard/recharge-modal";
+import { RechargeModal, type FeaturedPromo } from "@/components/dashboard/recharge-modal";
 import type { CountryVM, OrderVM, PricingVM, ServiceVM } from "@/components/dashboard/types";
 import { usePaymentSync } from "@/components/dashboard/use-payment-sync";
 import { WelcomeModal } from "@/components/dashboard/welcome-modal";
@@ -23,6 +23,8 @@ interface DashboardShellProps {
   isNewUser: boolean;
   /** Navigateur intégré (Facebook, Instagram...) : Wave s'y ouvre mal. */
   inAppBrowser: boolean;
+  /** Offre en cours, déjà validée pour ce client (voir lib/promo.ts). */
+  featuredPromo: FeaturedPromo | null;
   countries: CountryVM[];
   services: ServiceVM[];
   pricing: PricingVM[];
@@ -36,6 +38,7 @@ export function DashboardShell({
   initialPackId,
   isNewUser,
   inAppBrowser,
+  featuredPromo,
   countries,
   services,
   pricing,
@@ -138,6 +141,7 @@ export function DashboardShell({
         onClose={() => setIsRechargeOpen(false)}
         highlightedAmountId={initialPackId}
         inAppBrowser={inAppBrowser}
+        featuredPromo={featuredPromo}
       />
 
       {!initialPackId && (

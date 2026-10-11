@@ -73,3 +73,53 @@ export async function validatePromoCode(
 
   return { ok: true, promo, bonusFcfa, label: describePromo(promo) };
 }
+
+/**
+ * Code de l'offre en cours, appliqué d'office dans la modale de recharge.
+ * `FEATURED_PROMO_CODE=none` (Vercel) coupe la mise en avant sans redéployer
+ * de code ; désactiver ou laisser expirer le code en base suffit aussi.
+ */
+const FEATURED_PROMO_CODE = process.env.FEATURED_PROMO_CODE || "LANCEMENT";
+
+export interface FeaturedPromoView {
+  code: string;
+  type: PromoCode["type"];
+  value: number;
+  maxBonusFcfa: number | null;
+  minRechargeFcfa: number;
+  label: string;
+  expiresLabel: string | null;
+}
+
+/**
+ * Offre en cours, si ce client peut encore en profiter (code actif, non
+ * expiré, quota restant, jamais utilisé par lui). Sinon null : la modale
+ * n'affiche rien plutôt qu'un code qui serait refusé au paiement.
+ */
+export async function getFeaturedPromoFor(userId: string): Promise<FeaturedPromoView | null> {
+  if (FEATURED_PROMO_CODE.toLowerCase() === "none") return null;
+
+  try {
+    const result = await validatePromoCode(FEATURED_PROMO_CODE, userId, null);
+    if (!result.ok) return null;
+
+    const { code, type, value, maxBonusFcfa, minRechargeFcfa, expiresAt } = result.promo;
+    return {
+      code,
+      type,
+      value,
+      maxBonusFcfa,
+      minRechargeFcfa,
+      label: result.label,
+      // Fin de journée GMT (scripts/create-promo.ts) : affichée à l'heure
+      // d'Abidjan, qui est aussi celle de Dakar.
+      expiresLabel: expiresAt
+        ? expiresAt.toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "Africa/Abidjan" })
+        : null,
+    };
+  } catch (error) {
+    // Une offre marketing ne doit jamais empêcher le dashboard de s'afficher.
+    console.error("[getFeaturedPromoFor]", error);
+    return null;
+  }
+}

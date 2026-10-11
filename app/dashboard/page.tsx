@@ -8,6 +8,7 @@ import { isPriorityCountry, sortCountriesForDisplay, toFrenchCountryName } from 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { getRechargeAmountById } from "@/lib/packs";
 import { prisma } from "@/lib/prisma";
+import { getFeaturedPromoFor } from "@/lib/promo";
 
 /**
  * Palier choisi sur la page d'accueil avant l'inscription. Il arrive soit en
@@ -40,7 +41,7 @@ export default async function DashboardPage({
     redirect("/login");
   }
 
-  const [user, countries, services, pricing, orders] = await Promise.all([
+  const [user, countries, services, pricing, orders, featuredPromo] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: { name: true, email: true, balance: true, createdAt: true },
@@ -54,6 +55,7 @@ export default async function DashboardPage({
       orderBy: { createdAt: "desc" },
       take: 10,
     }),
+    getFeaturedPromoFor(session.user.id),
   ]);
 
   if (!user) {
@@ -67,6 +69,7 @@ export default async function DashboardPage({
       initialBalance={user.balance.toString()}
       initialPackId={resolvePackId(searchParams)}
       inAppBrowser={isInAppBrowser(headers().get("user-agent"))}
+      featuredPromo={featuredPromo}
       // ?welcome=1 seul ne prouve rien (lien rouvert, retapé à la main) :
       // la conversion « inscription » envoyée à Meta exige un compte créé à
       // l'instant, pour ne compter que de vraies inscriptions.

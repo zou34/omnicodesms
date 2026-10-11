@@ -18,14 +18,30 @@ interface RechargeModalProps {
   highlightedAmountId?: string | null;
   /** Navigateur intégré d'une appli : on recommande d'ouvrir le site ailleurs pour Wave. */
   inAppBrowser?: boolean;
+  /**
+   * Code de l'offre en cours, déjà validé côté serveur pour CE client (actif,
+   * non expiré, jamais utilisé par lui) : appliqué d'office, pour que le
+   * bonus s'affiche sur chaque palier sans que le client ait à le chercher.
+   */
+  featuredPromo?: FeaturedPromo | null;
 }
 
 interface AppliedPromo extends PromoRules {
   code: string;
   label: string;
+  /** Date de fin lisible (« 31 octobre »), pour l'offre mise en avant. */
+  expiresLabel?: string | null;
 }
 
-export function RechargeModal({ open, onClose, highlightedAmountId = null, inAppBrowser = false }: RechargeModalProps) {
+export type FeaturedPromo = AppliedPromo;
+
+export function RechargeModal({
+  open,
+  onClose,
+  highlightedAmountId = null,
+  inAppBrowser = false,
+  featuredPromo = null,
+}: RechargeModalProps) {
   // Sur mobile les cartes s'empilent (~450 px chacune) : celle qui compte —
   // le palier choisi, à défaut le palier recommandé — passe en tête au lieu
   // d'attendre deux écrans plus bas. Ordre d'origine dès 2 colonnes.
@@ -35,7 +51,7 @@ export function RechargeModal({ open, onClose, highlightedAmountId = null, inApp
   const [payingAmountId, setPayingAmountId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [promoInput, setPromoInput] = useState("");
-  const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
+  const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(featuredPromo);
   const [isCheckingPromo, setIsCheckingPromo] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const dismissToast = useCallback(() => setToast(null), []);
@@ -182,9 +198,16 @@ export function RechargeModal({ open, onClose, highlightedAmountId = null, inApp
         <div className="mt-6 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
           {appliedPromo ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="flex items-center gap-2 text-sm text-emerald-400">
-                <Tag className="h-4 w-4" />
-                Code <span className="font-mono font-bold">{appliedPromo.code}</span> appliqué — {appliedPromo.label}
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-emerald-400">
+                <Tag className="h-4 w-4 shrink-0" />
+                <span>
+                  Code <span className="font-mono font-bold">{appliedPromo.code}</span> appliqué — {appliedPromo.label}
+                </span>
+                {appliedPromo.expiresLabel && (
+                  <span className="basis-full pl-6 text-xs text-emerald-300/80">
+                    Offre valable jusqu&apos;au {appliedPromo.expiresLabel}
+                  </span>
+                )}
               </p>
               <button type="button" onClick={removePromo} className="text-xs text-slate-400 underline hover:text-white">
                 Retirer
