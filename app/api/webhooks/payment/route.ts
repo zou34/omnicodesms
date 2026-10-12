@@ -1,8 +1,7 @@
-import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 import { getPaymentProvider } from "@/lib/payments";
-import { prisma } from "@/lib/prisma";
+import { settleDeposit } from "@/lib/payments/settle-deposit";
 import { getClientIp, rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 // Generous on purpose: real gateways retry aggressively on anything but a
@@ -22,30 +21,6 @@ const WEBHOOK_WINDOW_MS = 60 * 1000;
 // payload wouldn't change the outcome and would only add noise. The one
 // exception is an internal failure (database unreachable): that answers 500
 // on purpose, so the gateway retries once we're back up.
-/** Crédite un bonus et l'inscrit au grand livre (type BONUS, référence unique). */
-async function creditBonus(
-  tx: Prisma.TransactionClient,
-  userId: string,
-  depositId: string,
-  kind: "bonus" | "promo",
-  amount: Prisma.Decimal
-) {
-  await tx.user.update({ where: { id: userId }, data: { balance: { increment: amount } } });
-  await tx.transaction.create({
-    data: {
-      userId,
-      type: "BONUS",
-      status: "SUCCESS",
-      provider: "WALLET",
-      // Contrainte d'unicité (provider, providerRef) : un même bonus ne peut
-      // jamais être inscrit deux fois pour un même dépôt.
-      providerRef: `${kind}_${depositId}`,
-      amount,
-      currency: "FCFA",
-    },
-  });
-}
-
 export async function POST(request: Request) {
   const ip = getClientIp(request.headers);
   const limit = rateLimit(`webhook:${ip}`, WEBHOOK_LIMIT, WEBHOOK_WINDOW_MS);
@@ -62,7 +37,16 @@ export async function POST(request: Request) {
   // payload shape apply is entirely the active provider's (SasPay today,
   // real provider's) concern — this route only cares about the verified
   // event it hands back.
-  const verification = await getPaymentProvider().verifyWebhook(rawBody, request.headers);
+  let verification;
+  try {
+    verification = await getPaymentProvider().verifyWebhook(rawBody, request.headers);
+  } catch (error) {
+    // La vérification peut interroger l'API de la passerelle (rapprochement
+    // d'un paiement en devise étrangère, référence absente de l'event) :
+    // une panne passagère répond 500 pour que la passerelle relance.
+    console.error("[POST /api/webhooks/payment] vérification impossible", error);
+    return NextResponse.json({ error: "Erreur interne." }, { status: 500 });
+  }
 
   if (!verification.valid) {
     if (verification.reason === "INVALID_SIGNATURE") {
@@ -78,130 +62,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
-  const { reference, status, amountFcfa } = verification.event;
-
   try {
-    const transaction = await prisma.transaction.findFirst({
-      where: { providerRef: reference, provider: "GATEWAY" },
-    });
-
-    if (!transaction) {
-      console.error(`[POST /api/webhooks/payment] unknown reference: ${reference}`);
-      return NextResponse.json({ received: true }, { status: 200 });
-    }
-
-    // Un échec n'est pas définitif : sur la page SasPay, le client peut
-    // « Réessayer » sur la même session après un premier échec (Wave non
-    // validé, solde insuffisant...). SasPay notifie alors l'échec PUIS la
-    // réussite, pour la même référence. FAILED -> SUCCESS doit donc rester
-    // possible — sans quoi le client paie et n'est jamais crédité (cas réel
-    // du 11/10/2026). Seul SUCCESS est terminal.
-    const settleableFrom: Array<"PENDING" | "FAILED"> =
-      status === "SUCCESS" ? ["PENDING", "FAILED"] : ["PENDING"];
-
-    // Fast-path skip (avoids the DB round-trip below for the common case
-    // of a plain retried delivery) — the real, race-safe guard is the
-    // `updateMany` below, not this check.
-    if (!(settleableFrom as string[]).includes(transaction.status)) {
-      return NextResponse.json({ received: true }, { status: 200 });
-    }
-
-    // Defense in depth: if the gateway tells us the amount it collected,
-    // it must match what we asked for. A mismatch here is a red flag, not
-    // something to silently accept.
-    if (amountFcfa !== undefined && Number(transaction.amount) !== amountFcfa) {
-      console.error(
-        `[POST /api/webhooks/payment] amount mismatch for ${reference}: expected ${transaction.amount}, got ${amountFcfa}`
-      );
-      return NextResponse.json({ received: true }, { status: 200 });
-    }
-
-    // Idempotency, done properly: gateways may (and do) deliver the same
-    // event more than once, including concurrently. `updateMany` with a
-    // status guard makes the transition atomic at the database level —
-    // only the request that actually flips the row gets `count === 1` and
-    // is allowed to touch the balance. A SUCCESS row is never in
-    // `settleableFrom`, so a duplicate or concurrent success delivery
-    // always gets `count === 0` and can't credit twice — the exact race
-    // the balance-debit path already avoids via the equivalent
-    // `updateMany`/`gte` pattern in app/api/orders/route.ts.
-    const settled = await prisma.$transaction(async (tx) => {
-      const result = await tx.transaction.updateMany({
-        where: { id: transaction.id, status: { in: settleableFrom } },
-        data: { status: status === "SUCCESS" ? "SUCCESS" : "FAILED" },
-      });
-
-      if (result.count === 0) {
-        // Lost the race to another delivery of the same event — nothing
-        // left to do.
-        return false;
-      }
-
-      if (status === "SUCCESS") {
-        await tx.user.update({
-          where: { id: transaction.userId },
-          data: { balance: { increment: transaction.amount } },
-        });
-
-        // Bonus du palier (ex. Pass Pro : 5 000 payés, +1 000 offerts),
-        // figé au checkout. Écriture BONUS séparée : l'historique du client
-        // continue de sommer exactement à son solde.
-        if (transaction.bonusAmount.gt(0)) {
-          await creditBonus(tx, transaction.userId, transaction.id, "bonus", transaction.bonusAmount);
-        }
-
-        // Bonus du code promo, sous deux conditions revérifiées ICI de façon
-        // atomique, car deux paiements peuvent être en cours avec le même
-        // code : quota non épuisé (UPDATE conditionnel) et première
-        // utilisation par ce client. Le paiement, lui, est crédité quoi qu'il
-        // arrive — seul le bonus saute.
-        if (transaction.promoCodeId && transaction.promoBonusAmount.gt(0)) {
-          const alreadyRedeemed = await tx.promoRedemption.findUnique({
-            where: { promoCodeId_userId: { promoCodeId: transaction.promoCodeId, userId: transaction.userId } },
-            select: { id: true },
-          });
-          const quotaTaken = alreadyRedeemed
-            ? 0
-            : await tx.$executeRaw`
-                UPDATE "PromoCode" SET "usedCount" = "usedCount" + 1
-                WHERE "id" = ${transaction.promoCodeId}
-                  AND ("maxUses" IS NULL OR "usedCount" < "maxUses")`;
-
-          if (quotaTaken === 1) {
-            // Une course sur l'unicité (même client, deux paiements simultanés)
-            // lèverait une erreur ici : la transaction entière est annulée, la
-            // route répond 500, SasPay relance, et la relance trouve la
-            // redemption existante — le paiement est alors crédité sans bonus.
-            await tx.promoRedemption.create({
-              data: {
-                promoCodeId: transaction.promoCodeId,
-                userId: transaction.userId,
-                transactionId: transaction.id,
-              },
-            });
-            await creditBonus(tx, transaction.userId, transaction.id, "promo", transaction.promoBonusAmount);
-          } else {
-            console.warn(
-              `[POST /api/webhooks/payment] bonus promo non versé pour ${reference} : code déjà utilisé ou quota épuisé`
-            );
-          }
-        }
-      }
-
-      return true;
-    });
-
-    if (!settled) {
-      console.warn(`[POST /api/webhooks/payment] duplicate delivery ignored for ${reference}`);
-    }
-
+    // Règlement (crédit, bonus, promo, idempotence) : lib/payments/settle-deposit.ts,
+    // partagé avec le rapprochement quotidien. Quelle que soit l'issue
+    // (créditée, déjà réglée, référence inconnue, montant incohérent), la
+    // réponse est 200 : relivrer le même événement n'y changerait rien.
+    await settleDeposit(verification.event, "[POST /api/webhooks/payment]");
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
     console.error("[POST /api/webhooks/payment]", error);
     // 500 pour que SasPay relance (+30 s, +5 min, +30 min, +2 h) : une panne
     // passagère de la base ne doit pas avaler un vrai paiement, car ce
-    // webhook est le seul chemin qui crédite un solde. Les relances sont sans
-    // risque — la garde PENDING ci-dessus ne crédite qu'une seule fois.
+    // webhook est le chemin principal qui crédite un solde. Les relances sont
+    // sans risque — settleDeposit ne crédite jamais deux fois.
     return NextResponse.json({ error: "Erreur interne." }, { status: 500 });
   }
 }

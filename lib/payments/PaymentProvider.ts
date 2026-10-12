@@ -1,6 +1,7 @@
 import type {
   InitializePaymentParams,
   InitializePaymentResult,
+  VerifiedPaymentEvent,
   WebhookVerificationResult,
 } from "@/lib/payments/types";
 
@@ -31,4 +32,15 @@ export abstract class PaymentProvider {
    * JSON, which isn't guaranteed to match byte-for-byte.
    */
   abstract verifyWebhook(rawBody: string, headers: Headers): Promise<WebhookVerificationResult>;
+
+  /**
+   * Paiements que la passerelle déclare réussis depuis `since`, lus à la
+   * source via son API. Sert au rapprochement quotidien (filet de sécurité
+   * si un webhook s'est perdu). Par défaut aucun : une passerelle sans API
+   * de consultation ne participe simplement pas au rapprochement.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async listSucceededPayments(since: Date): Promise<VerifiedPaymentEvent[]> {
+    return [];
+  }
 }

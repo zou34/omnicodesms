@@ -2,6 +2,8 @@ import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 
 import { applyOrderOutcome } from "@/lib/orders/settle";
+import { getPaymentProvider } from "@/lib/payments";
+import { settleDeposit } from "@/lib/payments/settle-deposit";
 import { prisma } from "@/lib/prisma";
 import { getSmsProvider, ProviderError } from "@/lib/providers";
 
@@ -22,6 +24,37 @@ export const maxDuration = 60;
 // toujours finir le lot en cours avant maxDuration.
 const BATCH_SIZE = 10;
 const TIME_BUDGET_MS = 45_000;
+
+// Rapprochement des paiements : fenêtre relue à chaque passage. La tâche ne
+// tourne qu'une fois par jour, et SasPay relance un webhook jusqu'à ~2 h après
+// le paiement : 3 jours couvrent largement un passage manqué.
+const PAYMENT_RECONCILE_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+
+/**
+ * Filet de sécurité des paiements : toute session que la passerelle déclare
+ * PAYÉE mais qui n'est pas créditée chez nous (webhook perdu, panne
+ * prolongée, bug) est réglée ici, par le même code que le webhook — donc sans
+ * risque de double crédit. Sans ce passage, un webhook perdu laissait le
+ * client payé et non crédité jusqu'à une intervention manuelle.
+ */
+async function reconcilePayments(): Promise<{ checked: number; credited: number; error?: string }> {
+  try {
+    const paid = await getPaymentProvider().listSucceededPayments(new Date(Date.now() - PAYMENT_RECONCILE_WINDOW_MS));
+    let credited = 0;
+    for (const event of paid) {
+      const outcome = await settleDeposit(event, "[CRON reconcile-payments]");
+      if (outcome === "credited") {
+        credited++;
+        console.warn(`[CRON reconcile-payments] paiement ${event.reference} crédité par rapprochement (webhook manquant)`);
+      }
+    }
+    return { checked: paid.length, credited };
+  } catch (error) {
+    // Ne bloque pas le remboursement des commandes : réessayé au prochain passage.
+    console.error("[CRON reconcile-payments]", error);
+    return { checked: 0, credited: 0, error: "Rapprochement impossible, réessayé au prochain passage." };
+  }
+}
 
 // Commandes sans date d'expiration (cas théorique) : on les considère mortes
 // passé ce délai, très au-delà du TTL de 10-20 min des fournisseurs.
@@ -49,6 +82,7 @@ export async function GET(request: Request) {
   }
 
   const startedAt = Date.now();
+  const payments = await reconcilePayments();
   const now = new Date(startedAt);
 
   try {
@@ -132,7 +166,7 @@ export async function GET(request: Request) {
         `${refunded} remboursée(s), ${completed} complétée(s), ${failed} en échec`
     );
 
-    return NextResponse.json({ examined, refunded, completed, failed });
+    return NextResponse.json({ examined, refunded, completed, failed, payments });
   } catch (error) {
     console.error("[CRON expire-orders]", error);
     return NextResponse.json({ error: "Une erreur interne est survenue." }, { status: 500 });

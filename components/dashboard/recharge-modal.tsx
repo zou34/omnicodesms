@@ -107,14 +107,14 @@ export function RechargeModal({
   // le montant est résolu là-bas depuis lib/packs.ts, jamais depuis le
   // client — puis redirige vers la page de paiement SasPay. Le solde et les
   // bonus sont crédités plus tard par le webhook, à la confirmation.
-  async function handleRecharge(amountId: string) {
+  async function handleRecharge(amountId: string, promoCode: string | undefined = appliedPromo?.code, isRetry = false) {
     setPayingAmountId(amountId);
     setError(null);
 
     // Envoyé dès le clic, pas après la réponse : la redirection vers SasPay
     // qui suit couperait la requête du pixel encore en vol.
     const rechargeAmount = getRechargeAmountById(amountId);
-    if (rechargeAmount) {
+    if (rechargeAmount && !isRetry) {
       trackMetaEvent("InitiateCheckout", {
         value: rechargeAmount.priceFcfa,
         currency: META_PIXEL_CURRENCY,
@@ -128,10 +128,20 @@ export function RechargeModal({
       const response = await fetch("/api/payments/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amountId, promoCode: appliedPromo?.code }),
+        body: JSON.stringify({ amountId, promoCode }),
       });
 
       const data = await response.json().catch(() => null);
+
+      // Code appliqué d'office (featuredPromo) devenu invalide entre-temps —
+      // typiquement déjà utilisé par ce client lors d'une recharge faite sans
+      // recharger la page. Le client n'a rien saisi : on ne bloque pas son
+      // paiement pour ça, on le relance sans code et on le lui dit.
+      if (data?.code === "INVALID_PROMO" && promoCode && promoCode === featuredPromo?.code && !isRetry) {
+        setAppliedPromo(null);
+        setToast({ type: "error", message: `${data.error} Recharge sans le bonus du code.` });
+        return handleRecharge(amountId, undefined, true);
+      }
 
       if (!response.ok || !data?.checkoutUrl) {
         if (data?.code === "INVALID_PROMO") setAppliedPromo(null);

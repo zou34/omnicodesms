@@ -7,6 +7,7 @@ import {
   type InitializePaymentParams,
   type InitializePaymentResult,
   type PaymentEventStatus,
+  type VerifiedPaymentEvent,
   type WebhookVerificationResult,
 } from "@/lib/payments/types";
 
@@ -274,35 +275,47 @@ export class SasPayProvider extends PaymentProvider {
       return { valid: false, reason: "UNRECOGNIZED_PAYLOAD" };
     }
 
-    // La devise doit être celle dans laquelle la session a été créée. Sans ce
-    // contrôle, un montant libellé dans une devise plus faible passerait le
-    // contrôle de montant de la route (qui ne compare que des nombres) et
-    // créditerait le solde en FCFA pour une somme bien moindre.
-    //
-    // Le contrôle vit ici plutôt que dans la route : XOF est le code que NOUS
-    // envoyons à SasPay, et la route reste ainsi agnostique du fournisseur —
-    // elle stocke la devise sous son nom courant, "FCFA".
-    if (data.currency && data.currency.toUpperCase() !== CURRENCY.toUpperCase()) {
-      console.error(
-        `[SasPayProvider] devise inattendue pour la transaction ${data.id} : ` +
-          `${data.currency} au lieu de ${CURRENCY}`
-      );
-      return { valid: false, reason: "UNRECOGNIZED_PAYLOAD" };
+    let reference: string | null;
+    let amountFcfa: number | undefined;
+
+    if (!data.currency || data.currency.toUpperCase() === CURRENCY.toUpperCase()) {
+      reference = await this.resolveMerchantReference(data);
+      // `data.amount` est le montant DEMANDÉ, pas ce que le payeur a déboursé
+      // (`charged`, qui inclut les frais en mode ADD_ON). C'est bien `amount`
+      // qu'il faut comparer à notre Transaction.amount, qui stocke le prix du
+      // pack hors frais de passerelle.
+      amountFcfa = data.amount !== undefined ? Number(data.amount) : undefined;
+    } else {
+      // Paiement réglé dans une autre devise : SasPay convertit la session
+      // (ex. crypto : 5 000 XOF -> 8,81 USD) et l'event porte le montant
+      // converti. Le comparer tel quel au prix du pack, ou le rejeter,
+      // ferait payer le client sans le créditer. On rapproche donc sur la
+      // session d'origine, lue à la source chez SasPay : c'est elle qui doit
+      // être en XOF et au montant de notre transaction.
+      const session = await this.fetchOriginSession(data.id);
+      if (!session || session.currency.toUpperCase() !== CURRENCY.toUpperCase()) {
+        console.error(
+          `[SasPayProvider] transaction ${data.id} en ${data.currency} : session d'origine ` +
+            `introuvable ou hors ${CURRENCY}`
+        );
+        return { valid: false, reason: "UNRECOGNIZED_PAYLOAD" };
+      }
+      const direct = data.metadata?.reference;
+      reference =
+        typeof direct === "string" && direct.length > 0
+          ? direct
+          : typeof session.metadata?.reference === "string"
+            ? session.metadata.reference
+            : null;
+      amountFcfa = Number(session.amount);
     }
 
-    const reference = await this.resolveMerchantReference(data);
     if (!reference) {
       console.error(
         `[SasPayProvider] impossible de rattacher la transaction SasPay ${data.id} à une référence marchand`
       );
       return { valid: false, reason: "UNRECOGNIZED_PAYLOAD" };
     }
-
-    // `data.amount` est le montant DEMANDÉ, pas ce que le payeur a déboursé
-    // (`charged`, qui inclut les frais en mode ADD_ON). C'est bien `amount`
-    // qu'il faut comparer à notre Transaction.amount, qui stocke le prix du
-    // pack hors frais de passerelle.
-    const amountFcfa = data.amount !== undefined ? Number(data.amount) : undefined;
 
     return {
       valid: true,
@@ -312,6 +325,102 @@ export class SasPayProvider extends PaymentProvider {
         amountFcfa: Number.isFinite(amountFcfa) ? amountFcfa : undefined,
       },
     };
+  }
+
+  /**
+   * Sessions de checkout PAYÉES depuis `since`, pour le rapprochement
+   * quotidien. La liste SasPay est triée de la plus récente à la plus
+   * ancienne : on s'arrête à la première session antérieure à `since`, ou
+   * après MAX_SESSION_PAGES pages.
+   *
+   * Le montant renvoyé est celui de la SESSION, en XOF : c'est lui que nous
+   * avons demandé, quel que soit le moyen de paiement (y compris crypto).
+   */
+  async listSucceededPayments(since: Date): Promise<VerifiedPaymentEvent[]> {
+    const paidSessionSchema = z.object({
+      next: z.string().nullish(),
+      results: z.array(
+        z.object({
+          status: z.string(),
+          amount: z.string(),
+          currency: z.string(),
+          created_at: z.string(),
+          metadata: z.record(z.string(), z.unknown()).nullish(),
+        })
+      ),
+    });
+
+    const events: VerifiedPaymentEvent[] = [];
+    let url: string | null = `${API_BASE_URL}/checkout-sessions/?page_size=${SESSION_PAGE_SIZE}`;
+
+    for (let page = 0; page < MAX_SESSION_PAGES && url; page++) {
+      const response: Response = await fetch(url, {
+        headers: { Authorization: `Bearer ${this.secretKey}` },
+        cache: "no-store",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      if (!response.ok) throw new Error(`Listage des sessions SasPay refusé (HTTP ${response.status})`);
+
+      const parsed = paidSessionSchema.safeParse(unwrapEnvelope(await response.json().catch(() => null)));
+      if (!parsed.success) throw new Error("Réponse de listage des sessions SasPay inattendue");
+
+      let reachedSince = false;
+      for (const session of parsed.data.results) {
+        if (new Date(session.created_at) < since) {
+          reachedSince = true;
+          break;
+        }
+        const reference = session.metadata?.reference;
+        if (session.status !== "PAID" || typeof reference !== "string" || reference.length === 0) continue;
+        if (session.currency.toUpperCase() !== CURRENCY.toUpperCase()) continue;
+
+        const amountFcfa = Number(session.amount);
+        events.push({ reference, status: "SUCCESS", amountFcfa: Number.isFinite(amountFcfa) ? amountFcfa : undefined });
+      }
+
+      url = reachedSince ? null : (parsed.data.next ?? null);
+    }
+
+    return events;
+  }
+
+  /**
+   * Session de checkout à l'origine d'une transaction SasPay, lue via l'API :
+   * GET /transactions/{id}/ donne `checkout_session`, puis
+   * GET /checkout-sessions/{id}/ donne le montant et la devise demandés.
+   *
+   * Une erreur réseau ou HTTP est levée, pas convertie en null : la route
+   * répond alors 500 et SasPay relance, au lieu de perdre le paiement.
+   */
+  private async fetchOriginSession(transactionId: string): Promise<{
+    amount: string;
+    currency: string;
+    metadata?: Record<string, unknown> | null;
+  } | null> {
+    const get = async (path: string): Promise<unknown> => {
+      const response = await fetch(`${API_BASE_URL}${path}`, {
+        headers: { Authorization: `Bearer ${this.secretKey}` },
+        cache: "no-store",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      if (!response.ok) throw new Error(`SasPay ${path} : HTTP ${response.status}`);
+      return unwrapEnvelope(await response.json());
+    };
+
+    const transaction = z
+      .object({ checkout_session: z.string().nullish() })
+      .safeParse(await get(`/transactions/${encodeURIComponent(transactionId)}/`));
+    const sessionId = transaction.success ? transaction.data.checkout_session : null;
+    if (!sessionId) return null;
+
+    const session = z
+      .object({
+        amount: z.string(),
+        currency: z.string(),
+        metadata: z.record(z.string(), z.unknown()).nullish(),
+      })
+      .safeParse(await get(`/checkout-sessions/${encodeURIComponent(sessionId)}/`));
+    return session.success ? session.data : null;
   }
 
   /**
