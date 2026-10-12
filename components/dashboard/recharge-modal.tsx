@@ -4,6 +4,7 @@ import { Loader2, ShieldCheck, Tag, X, Zap } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { OpenInBrowserHint } from "@/components/dashboard/open-in-browser-hint";
+import { PaymentHelp } from "@/components/dashboard/payment-help";
 import { savePendingCheckout } from "@/components/dashboard/use-payment-sync";
 import { TierCard, TierCta } from "@/components/pricing/tier-card";
 import { Toast, type ToastState } from "@/components/ui/toast";
@@ -255,6 +256,8 @@ export function RechargeModal({
             {error}
           </div>
         )}
+
+        <PaymentHelp />
 
         {/* pt-4 : place pour le badge "Recommandé" qui déborde de sa carte. */}
         <div className="mt-6 grid grid-cols-1 items-stretch gap-5 pt-4 sm:grid-cols-2 lg:grid-cols-4">
