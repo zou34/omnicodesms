@@ -11,7 +11,7 @@ export abstract class EmailProvider {
   abstract sendPasswordResetEmail(params: { to: string; resetUrl: string }): Promise<void>;
 
   abstract sendContactMessage(params: {
-    to: string;
+    to: string | string[];
     from: string;
     name: string;
     message: string;

@@ -14,6 +14,22 @@ const contactSchema = z.object({
   message: z.string().trim().min(1, "Message requis.").max(5000),
 });
 
+const recipientSchema = z.string().email();
+
+/**
+ * Destinataires de la notification, depuis CONTACT_EMAIL. Tolère les erreurs
+ * de saisie courantes dans le tableau de bord Vercel — guillemets autour de la
+ * valeur, espaces, retour à la ligne — qui faisaient refuser l'envoi par
+ * Resend sans que personne ne le voie. Plusieurs adresses : séparées par des
+ * virgules.
+ */
+function parseContactRecipients(raw: string | undefined): string[] {
+  return (raw ?? "")
+    .split(",")
+    .map((value) => value.trim().replace(/^["']+|["']+$/g, "").trim())
+    .filter((value) => recipientSchema.safeParse(value).success);
+}
+
 export async function POST(request: Request) {
   try {
     const ip = getClientIp(request.headers);
@@ -43,15 +59,25 @@ export async function POST(request: Request) {
     // reçoit une erreur (catch ci-dessous) plutôt qu'un faux "message envoyé".
     await prisma.contactMessage.create({ data: { name, email, message } });
 
-    // Notification e-mail en plus, au mieux-effort : le message est déjà
-    // enregistré, un souci de livraison ne doit pas faire échouer l'envoi.
-    const contactEmail = process.env.CONTACT_EMAIL;
-    if (contactEmail) {
-      await getEmailProvider()
-        .sendContactMessage({ to: contactEmail, name, from: email, message })
-        .catch((error) => {
-          console.error("[POST /api/contact] notification email failed", error);
-        });
+    // Notification e-mail en plus : le message est déjà enregistré (lisible
+    // dans /admin/messages), un souci de livraison ne doit donc pas faire
+    // échouer l'envoi côté visiteur. Mais il ne doit plus passer inaperçu :
+    // chaque cause d'échec est journalisée explicitement.
+    const recipients = parseContactRecipients(process.env.CONTACT_EMAIL);
+    if (recipients.length === 0) {
+      console.error(
+        "[POST /api/contact] CONTACT_EMAIL absente ou invalide : message enregistré en base, " +
+          "aucune notification envoyée. Valeur attendue : une adresse e-mail (ou plusieurs, séparées par des virgules)."
+      );
+    } else {
+      try {
+        await getEmailProvider().sendContactMessage({ to: recipients, name, from: email, message });
+      } catch (error) {
+        console.error(
+          `[POST /api/contact] notification vers ${recipients.join(", ")} refusée :`,
+          error instanceof Error ? error.message : error
+        );
+      }
     }
 
     return NextResponse.json({ success: true });

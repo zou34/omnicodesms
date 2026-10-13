@@ -35,7 +35,7 @@ export class ResendEmailProvider extends EmailProvider {
 
     if (error) {
       console.error("[ResendEmailProvider] send failed", error);
-      throw new Error("Échec de l'envoi de l'e-mail de réinitialisation.");
+      throw new Error(`Échec de l'envoi de l'e-mail de réinitialisation : ${error.name} — ${error.message}`);
     }
   }
 
@@ -45,7 +45,7 @@ export class ResendEmailProvider extends EmailProvider {
     name,
     message,
   }: {
-    to: string;
+    to: string | string[];
     from: string;
     name: string;
     message: string;
@@ -63,7 +63,7 @@ export class ResendEmailProvider extends EmailProvider {
 
     if (error) {
       console.error("[ResendEmailProvider] contact notification failed", error);
-      throw new Error("Échec de l'envoi de la notification de contact.");
+      throw new Error(`Échec de l'envoi de la notification de contact : ${error.name} — ${error.message}`);
     }
   }
 }

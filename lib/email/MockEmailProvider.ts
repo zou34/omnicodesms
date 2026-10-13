@@ -21,7 +21,7 @@ export class MockEmailProvider extends EmailProvider {
     name,
     message,
   }: {
-    to: string;
+    to: string | string[];
     from: string;
     name: string;
     message: string;
