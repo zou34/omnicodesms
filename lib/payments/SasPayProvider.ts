@@ -25,6 +25,11 @@ const CURRENCY = process.env.SASPAY_CURRENCY || "XOF";
 // sortant pour ne jamais laisser une route Next.js pendre indéfiniment.
 const REQUEST_TIMEOUT_MS = 15_000;
 
+// Création de session : délai par tentative, deux tentatives au plus (voir
+// initializePayment). 2 × 12 s + pause tient dans le maxDuration (30 s) de la
+// route de checkout, avec de la marge pour les écritures en base.
+const SESSION_CREATE_TIMEOUT_MS = 12_000;
+
 // Tolérance d'horodatage imposée par la doc SasPay (section "Sécurité —
 // vérifier la signature") : au-delà, un webhook légitime intercepté
 // resterait rejouable indéfiniment.
@@ -198,9 +203,13 @@ export class SasPayProvider extends PaymentProvider {
     // sur une fausse piste au moment du diagnostic.
     const secretKey = this.secretKey;
 
-    let response: Response;
-    try {
-      response = await fetch(`${API_BASE_URL}/checkout-sessions/`, {
+    // Une seconde tentative si SasPay est injoignable ou répond 429/5xx : une
+    // micro-coupure ne doit pas coûter un paiement au client. Sans risque —
+    // une session créée deux fois n'est jamais payée deux fois, seule celle
+    // dont l'URL est renvoyée au navigateur sert. Les deux tentatives tiennent
+    // dans le maxDuration de app/api/payments/checkout/route.ts.
+    const createSession = () =>
+      fetch(`${API_BASE_URL}/checkout-sessions/`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${secretKey}`,
@@ -208,11 +217,30 @@ export class SasPayProvider extends PaymentProvider {
         },
         body: JSON.stringify(body),
         cache: "no-store",
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal: AbortSignal.timeout(SESSION_CREATE_TIMEOUT_MS),
       });
-    } catch (error) {
+
+    let response: Response | null = null;
+    let networkError: unknown = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        response = await createSession();
+        networkError = null;
+        if (response.ok || (response.status !== 429 && response.status < 500)) break;
+      } catch (error) {
+        networkError = error;
+      }
+      if (attempt === 1) {
+        console.warn(
+          `[SasPayProvider] création de session : ${networkError ? "SasPay injoignable" : `HTTP ${response?.status}`}, nouvelle tentative`
+        );
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+    }
+
+    if (!response) {
       throw new PaymentProviderError(
-        `SasPay est injoignable: ${error instanceof Error ? error.message : "erreur réseau"}.`,
+        `SasPay est injoignable: ${networkError instanceof Error ? networkError.message : "erreur réseau"}.`,
         "GATEWAY_UNAVAILABLE"
       );
     }

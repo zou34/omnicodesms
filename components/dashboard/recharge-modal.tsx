@@ -5,11 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 
 import { OpenInBrowserHint } from "@/components/dashboard/open-in-browser-hint";
 import { PaymentHelp } from "@/components/dashboard/payment-help";
-import { savePendingCheckout } from "@/components/dashboard/use-payment-sync";
+import { startCheckout } from "@/components/dashboard/start-checkout";
 import { TierCard, TierCta } from "@/components/pricing/tier-card";
 import { Toast, type ToastState } from "@/components/ui/toast";
-import { META_PIXEL_CURRENCY, trackMetaEvent } from "@/lib/meta-pixel";
-import { formatFcfa, getRechargeAmountById, RECHARGE_AMOUNTS } from "@/lib/packs";
+import { formatFcfa, RECHARGE_AMOUNTS } from "@/lib/packs";
 import { computePromoBonus, normalizePromoCode, type PromoRules } from "@/lib/promo-rules";
 
 interface RechargeModalProps {
@@ -104,61 +103,29 @@ export function RechargeModal({
     setPromoInput("");
   }
 
-  // Crée une session de paiement côté serveur (app/api/payments/checkout) —
-  // le montant est résolu là-bas depuis lib/packs.ts, jamais depuis le
-  // client — puis redirige vers la page de paiement SasPay. Le solde et les
-  // bonus sont crédités plus tard par le webhook, à la confirmation.
+  // Lance le paiement (components/dashboard/start-checkout.ts) : session créée
+  // côté serveur, recharge mémorisée pour le suivi au retour, redirection vers
+  // SasPay. Le solde et les bonus sont crédités plus tard, à la confirmation.
   async function handleRecharge(amountId: string, promoCode: string | undefined = appliedPromo?.code, isRetry = false) {
     setPayingAmountId(amountId);
     setError(null);
 
-    // Envoyé dès le clic, pas après la réponse : la redirection vers SasPay
-    // qui suit couperait la requête du pixel encore en vol.
-    const rechargeAmount = getRechargeAmountById(amountId);
-    if (rechargeAmount && !isRetry) {
-      trackMetaEvent("InitiateCheckout", {
-        value: rechargeAmount.priceFcfa,
-        currency: META_PIXEL_CURRENCY,
-        content_ids: [rechargeAmount.id],
-        content_type: "product",
-        num_items: 1,
-      });
+    const result = await startCheckout(amountId, promoCode, { track: !isRetry });
+    if (result.ok) return;
+
+    // Code appliqué d'office (featuredPromo) devenu invalide entre-temps —
+    // typiquement déjà utilisé par ce client lors d'une recharge faite sans
+    // recharger la page. Le client n'a rien saisi : on ne bloque pas son
+    // paiement pour ça, on le relance sans code et on le lui dit.
+    if (result.code === "INVALID_PROMO" && promoCode && promoCode === featuredPromo?.code && !isRetry) {
+      setAppliedPromo(null);
+      setToast({ type: "error", message: `${result.error} Recharge sans le bonus du code.` });
+      return handleRecharge(amountId, undefined, true);
     }
 
-    try {
-      const response = await fetch("/api/payments/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amountId, promoCode }),
-      });
-
-      const data = await response.json().catch(() => null);
-
-      // Code appliqué d'office (featuredPromo) devenu invalide entre-temps —
-      // typiquement déjà utilisé par ce client lors d'une recharge faite sans
-      // recharger la page. Le client n'a rien saisi : on ne bloque pas son
-      // paiement pour ça, on le relance sans code et on le lui dit.
-      if (data?.code === "INVALID_PROMO" && promoCode && promoCode === featuredPromo?.code && !isRetry) {
-        setAppliedPromo(null);
-        setToast({ type: "error", message: `${data.error} Recharge sans le bonus du code.` });
-        return handleRecharge(amountId, undefined, true);
-      }
-
-      if (!response.ok || !data?.checkoutUrl) {
-        if (data?.code === "INVALID_PROMO") setAppliedPromo(null);
-        setError(data?.error ?? "Impossible d'initier le paiement.");
-        setPayingAmountId(null);
-        return;
-      }
-
-      // Retrouvée au retour sur l'application même sans la redirection de
-      // SasPay (Précédent, PWA rouverte) : voir use-payment-sync.ts.
-      if (typeof data.reference === "string") savePendingCheckout(data.reference);
-      window.location.href = data.checkoutUrl;
-    } catch {
-      setError("Une erreur réseau est survenue.");
-      setPayingAmountId(null);
-    }
+    if (result.code === "INVALID_PROMO") setAppliedPromo(null);
+    setError(result.error);
+    setPayingAmountId(null);
   }
 
   function handleClose() {

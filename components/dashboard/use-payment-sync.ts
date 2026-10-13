@@ -27,6 +27,9 @@ const RETURN_WATCH_MS = 2 * 60_000;
 const RESUME_WATCH_MS = 30_000;
 // Au-delà, une recharge en attente n'est plus suivie au retour.
 const PENDING_RECENT_MS = 30 * 60_000;
+// Durée de vie d'une session SasPay : au-delà, une recharge restée en attente
+// ne peut plus être payée, inutile de proposer de la « finaliser ».
+const SESSION_TTL_MS = 60 * 60_000;
 const PENDING_MAX_AGE_MS = 24 * 60 * 60_000;
 
 const PENDING_KEY = "fcs:pending-checkout";
@@ -36,6 +39,15 @@ const TRACKED_MAX = 20;
 interface PendingCheckout {
   reference: string;
   createdAt: number;
+  /** Palier et code de la recharge : pour la relancer en un clic après un échec. */
+  amountId?: string;
+  promoCode?: string;
+}
+
+/** De quoi relancer la même recharge (bouton « Réessayer le paiement »). */
+export interface RetryInfo {
+  amountId: string | null;
+  promoCode?: string;
 }
 
 interface StatusResponse {
@@ -47,9 +59,10 @@ export type PaymentSyncState =
   | { phase: "idle" }
   | { phase: "checking" }
   | { phase: "credited" }
-  | { phase: "failed" }
+  | { phase: "failed"; retry: RetryInfo }
   | { phase: "delayed" }
-  | { phase: "cancelled" };
+  | { phase: "cancelled"; retry: RetryInfo }
+  | { phase: "unfinished"; retry: RetryInfo };
 
 // localStorage peut être indisponible (navigation privée, navigateur intégré
 // restrictif) : chaque accès est protégé et son absence n'empêche que le
@@ -64,16 +77,21 @@ function readPendingCheckout(): PendingCheckout | null {
       window.localStorage.removeItem(PENDING_KEY);
       return null;
     }
-    return { reference: parsed.reference, createdAt: parsed.createdAt };
+    return {
+      reference: parsed.reference,
+      createdAt: parsed.createdAt,
+      amountId: typeof parsed.amountId === "string" ? parsed.amountId : undefined,
+      promoCode: typeof parsed.promoCode === "string" ? parsed.promoCode : undefined,
+    };
   } catch {
     return null;
   }
 }
 
-/** Appelée par la modale de recharge juste avant de partir vers SasPay. */
-export function savePendingCheckout(reference: string) {
+/** Appelée par startCheckout juste avant de partir vers SasPay. */
+export function savePendingCheckout(reference: string, meta: { amountId?: string; promoCode?: string } = {}) {
   try {
-    const entry: PendingCheckout = { reference, createdAt: Date.now() };
+    const entry: PendingCheckout = { reference, createdAt: Date.now(), ...meta };
     window.localStorage.setItem(PENDING_KEY, JSON.stringify(entry));
   } catch {
     // Voir readPendingCheckout.
@@ -114,7 +132,17 @@ export function usePaymentSync(onBalance: (balance: number) => void) {
   // dans une ref pour survivre au double montage des effets en StrictMode.
   const returnParams = useRef<{ payment: string | null; ref: string | null } | null>(null);
 
-  const dismiss = useCallback(() => setState({ phase: "idle" }), []);
+  // Recharge en cours de suivi, pour que dismiss sache quoi oublier.
+  const trackedRef = useRef<string | null>(null);
+
+  const dismiss = useCallback(() => {
+    // « Paiement non finalisé » refermé : le client a fait son choix, on
+    // cesse de lui reproposer cette recharge à chaque retour sur le site.
+    setState((current) => {
+      if (current.phase === "unfinished" && trackedRef.current) clearPendingCheckout(trackedRef.current);
+      return { phase: "idle" };
+    });
+  }, []);
 
   useEffect(() => {
     if (!returnParams.current) {
@@ -130,14 +158,27 @@ export function usePaymentSync(onBalance: (balance: number) => void) {
     }
     const { payment, ref: refFromUrl } = returnParams.current;
 
+    // Recharges lancées depuis ce navigateur, avec de quoi les relancer.
+    const knownPending = new Map<string, PendingCheckout>();
+    const remember = (pending: PendingCheckout | null) => {
+      if (pending) knownPending.set(pending.reference, pending);
+      return pending;
+    };
+    const retryFor = (ref: string | null): RetryInfo => {
+      const pending = ref ? knownPending.get(ref) : undefined;
+      return { amountId: pending?.amountId ?? null, promoCode: pending?.promoCode };
+    };
+
     if (payment === "cancelled") {
-      setState({ phase: "cancelled" });
+      const pending = remember(readPendingCheckout());
+      setState({ phase: "cancelled", retry: retryFor(pending?.reference ?? null) });
     }
 
     const returnedFromCheckout = payment === "success";
     // Recharge dont le client revient par la redirection SasPay : la seule
     // dont on affiche l'attente ou l'échec. Une autre recharge suivie en
     // silence (abandonnée puis Précédent) ne doit rien afficher de tel.
+    remember(readPendingCheckout());
     let returnRef: string | null = returnedFromCheckout
       ? refFromUrl ?? readPendingCheckout()?.reference ?? null
       : null;
@@ -166,7 +207,11 @@ export function usePaymentSync(onBalance: (balance: number) => void) {
       clearPendingCheckout(ref);
 
       if (status === "FAILED") {
-        if (isReturnRef(ref)) setState({ phase: "failed" });
+        // Échec d'une recharge lancée depuis ce navigateur (ou dont le client
+        // revient) : toujours affiché, avec de quoi la relancer en un clic.
+        // Avant, seul le retour par redirection l'affichait — le client qui
+        // revenait par Précédent ne voyait rien et ne savait pas quoi faire.
+        if (isReturnRef(ref) || knownPending.has(ref)) setState({ phase: "failed", retry: retryFor(ref) });
         return;
       }
 
@@ -241,7 +286,17 @@ export function usePaymentSync(onBalance: (balance: number) => void) {
         timer = setTimeout(() => void tick(id), POLL_INTERVAL_MS);
       } else {
         stop();
-        if (isReturnRef(reference)) setState({ phase: "delayed" });
+        if (isReturnRef(reference)) {
+          setState({ phase: "delayed" });
+        } else if (reference && !settled.has(reference)) {
+          // Recharge lancée depuis ce navigateur, toujours en attente : le
+          // client est revenu sans finaliser (Wave non validé, page fermée...).
+          // On lui propose de la relancer tant que la session peut l'être.
+          const pending = knownPending.get(reference);
+          if (pending && Date.now() - pending.createdAt < SESSION_TTL_MS) {
+            setState({ phase: "unfinished", retry: retryFor(reference) });
+          }
+        }
       }
     }
 
@@ -254,11 +309,12 @@ export function usePaymentSync(onBalance: (balance: number) => void) {
     }
 
     function watchPendingCheckout() {
-      const pending = readPendingCheckout();
+      const pending = remember(readPendingCheckout());
       if (!pending || settled.has(pending.reference)) return false;
       // Une recharge lancée depuis cette même page (retour par Précédent)
       // remplace celle qu'on suivait.
       reference = pending.reference;
+      trackedRef.current = reference;
       if (isReturnRef(reference)) setState({ phase: "checking" });
       const isRecent = Date.now() - pending.createdAt < PENDING_RECENT_MS;
       watch(isRecent ? RESUME_WATCH_MS : 0);

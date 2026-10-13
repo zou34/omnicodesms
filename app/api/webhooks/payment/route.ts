@@ -9,6 +9,11 @@ import { getClientIp, rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 // normal retry traffic. Checked first, before signature/DB work, so a
 // flood is cheap to reject.
 const WEBHOOK_LIMIT = 100;
+
+// La vérification peut interroger l'API SasPay (paiement en devise étrangère,
+// référence absente de l'event) : marge explicite pour ne jamais être coupée
+// avant d'avoir crédité — une coupure ferait relancer SasPay plus tard.
+export const maxDuration = 30;
 const WEBHOOK_WINDOW_MS = 60 * 1000;
 
 // Confirms (or rejects) a payment initiated via /api/payments/checkout.

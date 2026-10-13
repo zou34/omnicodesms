@@ -15,6 +15,12 @@ const checkoutSchema = z.object({
   promoCode: z.string().trim().max(PROMO_CODE_MAX_LENGTH).optional(),
 });
 
+// Durée maximale explicite : la création de session SasPay peut prendre
+// jusqu'à 2 × 12 s (seconde tentative, voir SasPayProvider). Sans elle, la
+// fonction pouvait être coupée par la limite par défaut de Vercel avant la
+// réponse de SasPay — le client voyait une erreur alors que rien n'était cassé.
+export const maxDuration = 30;
+
 // `||`, not `??` — see app/layout.tsx for why an empty string must also fall back.
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 

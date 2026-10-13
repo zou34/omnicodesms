@@ -8,8 +8,9 @@ import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { PaymentStatusBanner } from "@/components/dashboard/payment-status-banner";
 import { PurchasePanel } from "@/components/dashboard/purchase-panel";
 import { RechargeModal, type FeaturedPromo } from "@/components/dashboard/recharge-modal";
+import { startCheckout } from "@/components/dashboard/start-checkout";
 import type { CountryVM, OrderVM, PricingVM, ServiceVM } from "@/components/dashboard/types";
-import { usePaymentSync } from "@/components/dashboard/use-payment-sync";
+import { usePaymentSync, type RetryInfo } from "@/components/dashboard/use-payment-sync";
 import { WelcomeModal } from "@/components/dashboard/welcome-modal";
 import { trackMetaEventOnce } from "@/lib/meta-pixel";
 
@@ -58,6 +59,28 @@ export function DashboardShell({
   // page d'accueil : il a exprimé son intention, on ne la lui refait pas
   // reformuler (ni via la modale de bienvenue, ni en re-choisissant le palier).
   const [isRechargeOpen, setIsRechargeOpen] = useState(initialPackId !== null);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+
+  // « Réessayer le paiement » : relance directement la même recharge (palier
+  // et code mémorisés au départ), sans repasser par la modale. Un code devenu
+  // invalide entre-temps ne bloque pas la relance : elle repart sans lui.
+  const handleRetry = useCallback(async (retry: RetryInfo) => {
+    if (!retry.amountId) {
+      setIsRechargeOpen(true);
+      return;
+    }
+    setIsRetrying(true);
+    setRetryError(null);
+    let result = await startCheckout(retry.amountId, retry.promoCode);
+    if (!result.ok && result.code === "INVALID_PROMO") {
+      result = await startCheckout(retry.amountId, undefined, { track: false });
+    }
+    if (!result.ok) {
+      setRetryError(result.error);
+      setIsRetrying(false);
+    }
+  }, []);
 
   // Conversion « inscription » du Pixel Meta. Envoyée ici plutôt que dans le
   // formulaire : les deux parcours (e-mail et première connexion Google via
@@ -119,7 +142,17 @@ export function DashboardShell({
         onOpenRecharge={() => setIsRechargeOpen(true)}
       />
 
-      <PaymentStatusBanner state={paymentSync.state} onDismiss={paymentSync.dismiss} />
+      <PaymentStatusBanner
+        state={paymentSync.state}
+        onDismiss={() => {
+          setRetryError(null);
+          paymentSync.dismiss();
+        }}
+        onRetry={handleRetry}
+        onChooseAmount={() => setIsRechargeOpen(true)}
+        isRetrying={isRetrying}
+        retryError={retryError}
+      />
 
       <main className="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 sm:py-10">
         <PurchasePanel
