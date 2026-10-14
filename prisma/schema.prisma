@@ -75,6 +75,7 @@ model User {
   orders           Order[]
   transactions     Transaction[]
   promoRedemptions PromoRedemption[]
+  campaignSends    EmailCampaignSend[]
 }
 
 model Country {
@@ -266,4 +267,18 @@ model PromoRedemption {
   transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@unique([promoCodeId, userId])
+}
+
+/// Un e-mail de campagne (relance, annonce) envoyé à un utilisateur. L'unicité
+/// (campagne, utilisateur) garantit qu'un même client ne reçoit jamais deux
+/// fois la même campagne, même si l'envoi est relancé.
+model EmailCampaignSend {
+  id       String   @id @default(cuid())
+  campaign String
+  userId   String
+  sentAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([campaign, userId])
 }
