@@ -5,10 +5,13 @@ import { useCallback, useEffect, useState } from "react";
 
 import { OpenInBrowserHint } from "@/components/dashboard/open-in-browser-hint";
 import { PaymentHelp } from "@/components/dashboard/payment-help";
+import { PriceExamples } from "@/components/dashboard/price-examples";
 import { startCheckout } from "@/components/dashboard/start-checkout";
+import { TrustBadges } from "@/components/dashboard/trust-badges";
 import { TierCard, TierCta } from "@/components/pricing/tier-card";
 import { Toast, type ToastState } from "@/components/ui/toast";
 import { formatFcfa, RECHARGE_AMOUNTS } from "@/lib/packs";
+import type { PriceExample } from "@/lib/price-examples";
 import { computePromoBonus, normalizePromoCode, type PromoRules } from "@/lib/promo-rules";
 
 interface RechargeModalProps {
@@ -24,6 +27,8 @@ interface RechargeModalProps {
    * bonus s'affiche sur chaque palier sans que le client ait à le chercher.
    */
   featuredPromo?: FeaturedPromo | null;
+  /** Exemples de prix réels, affichés au-dessus des paliers. */
+  priceExamples?: PriceExample[];
 }
 
 interface AppliedPromo extends PromoRules {
@@ -41,6 +46,7 @@ export function RechargeModal({
   highlightedAmountId = null,
   inAppBrowser = false,
   featuredPromo = null,
+  priceExamples = [],
 }: RechargeModalProps) {
   // Sur mobile les cartes s'empilent (~450 px chacune) : celle qui compte —
   // le palier choisi, à défaut le palier recommandé — passe en tête au lieu
@@ -226,6 +232,8 @@ export function RechargeModal({
 
         <PaymentHelp />
 
+        <PriceExamples examples={priceExamples} />
+
         {/* pt-4 : place pour le badge "Recommandé" qui déborde de sa carte. */}
         <div className="mt-6 grid grid-cols-1 items-stretch gap-5 pt-4 sm:grid-cols-2 lg:grid-cols-4">
           {RECHARGE_AMOUNTS.map((amount) => {
@@ -263,6 +271,8 @@ export function RechargeModal({
             );
           })}
         </div>
+
+        <TrustBadges />
 
         <p className="mt-6 flex items-center justify-center gap-1.5 text-center text-xs text-slate-500">
           <ShieldCheck className="h-3.5 w-3.5 shrink-0" />

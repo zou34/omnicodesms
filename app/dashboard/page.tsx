@@ -8,6 +8,7 @@ import { isPriorityCountry, sortCountriesForDisplay, toFrenchCountryName } from 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { getRechargeAmountById } from "@/lib/packs";
 import { prisma } from "@/lib/prisma";
+import { buildPriceExamples } from "@/lib/price-examples";
 import { getFeaturedPromoFor } from "@/lib/promo";
 
 /**
@@ -62,6 +63,12 @@ export default async function DashboardPage({
     redirect("/login");
   }
 
+  const priceExamples = buildPriceExamples(
+    pricing.map((entry) => ({ countryId: entry.countryId, serviceId: entry.serviceId, price: Number(entry.price) })),
+    countries.map((country) => ({ id: country.id, code: country.code, name: toFrenchCountryName(country.code, country.name) })),
+    services
+  );
+
   return (
     <DashboardShell
       userName={user.name}
@@ -70,6 +77,7 @@ export default async function DashboardPage({
       initialPackId={resolvePackId(searchParams)}
       inAppBrowser={isInAppBrowser(headers().get("user-agent"))}
       featuredPromo={featuredPromo}
+      priceExamples={priceExamples}
       // ?welcome=1 seul ne prouve rien (lien rouvert, retapé à la main) :
       // la conversion « inscription » envoyée à Meta exige un compte créé à
       // l'instant, pour ne compter que de vraies inscriptions.

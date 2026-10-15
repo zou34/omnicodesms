@@ -11,6 +11,7 @@ import { RechargeModal, type FeaturedPromo } from "@/components/dashboard/rechar
 import { startCheckout } from "@/components/dashboard/start-checkout";
 import type { CountryVM, OrderVM, PricingVM, ServiceVM } from "@/components/dashboard/types";
 import { usePaymentSync, type RetryInfo } from "@/components/dashboard/use-payment-sync";
+import type { PriceExample } from "@/lib/price-examples";
 import { WelcomeModal } from "@/components/dashboard/welcome-modal";
 import { trackMetaEventOnce } from "@/lib/meta-pixel";
 
@@ -26,6 +27,8 @@ interface DashboardShellProps {
   inAppBrowser: boolean;
   /** Offre en cours, déjà validée pour ce client (voir lib/promo.ts). */
   featuredPromo: FeaturedPromo | null;
+  /** Exemples « avec 1 000 FCFA », calculés depuis le catalogue réel. */
+  priceExamples: PriceExample[];
   countries: CountryVM[];
   services: ServiceVM[];
   pricing: PricingVM[];
@@ -40,6 +43,7 @@ export function DashboardShell({
   isNewUser,
   inAppBrowser,
   featuredPromo,
+  priceExamples,
   countries,
   services,
   pricing,
@@ -175,6 +179,7 @@ export function DashboardShell({
         highlightedAmountId={initialPackId}
         inAppBrowser={inAppBrowser}
         featuredPromo={featuredPromo}
+        priceExamples={priceExamples}
       />
 
       {!initialPackId && (
