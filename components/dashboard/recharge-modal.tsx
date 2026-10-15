@@ -265,6 +265,7 @@ export function RechargeModal({
                       {isPaying && <Loader2 className="h-4 w-4 animate-spin" />}
                       {isPaying ? "Redirection..." : `Recharger ${formatFcfa(amount.priceFcfa)}`}
                     </TierCta>
+                    <TrustBadges variant="compact" />
                   </div>
                 }
               />
